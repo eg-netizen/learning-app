@@ -303,15 +303,19 @@ function padHTML(Q, q) {
   return `<div class="pad">${[7, 8, 9].map(n => key(n, n)).join('')}${key('back', '⌫', 'fn')}${[4, 5, 6].map(n => key(n, n)).join('')}${key('/', '/')}${[1, 2, 3].map(n => key(n, n)).join('')}${key('.', '.')}${key(0, 0, 'span2')}${many ? key('next', 'Next box ▶', 'fn span2') : key('clear', 'Clear', 'fn span2')}</div>`;
 }
 
-// A reminder for a question that builds on an earlier one.
+// A reminder for a question that builds on an earlier one: her own answer to it if she gave one this run,
+// otherwise the book's answer (for example when she skipped it).
 function contextNote(Q) {
   if (Q.context) return Q.context;
   if (!Q.after) return '';
   const bank = D.banks.find(b => b.id === S.run.bankId);
   const prev = bank && bank.questions.find(x => x.id === Q.after);
   if (!prev) return '';
-  const ans = answerText(prev);
-  return 'The answer to question ' + String(prev.id).split('-').pop() + ' was ' + ans + (ans.endsWith('.') ? '' : '.');
+  const num = String(prev.id).split('-').pop();
+  const done = S.run.items.find(i => i.qid === prev.id && !i.skipped);
+  const mine = done ? prev.fields.map((f, k) => (f.prefix || '') + (done.answer[k] || '') + (f.suffix ? ' ' + f.suffix : '')).join(', ').trim() : '';
+  const text = mine || answerText(prev);
+  return (mine ? 'Your answer to question ' : 'The answer to question ') + num + (mine ? ' was ' : ' is ') + text + (text.endsWith('.') ? '' : '.');
 }
 
 function screenQuestion() {
