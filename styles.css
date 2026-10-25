@@ -11,7 +11,7 @@
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 17px; line-height: 1.4; }
-#app { max-width: 560px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
+#app { max-width: 560px; margin: 0 auto; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
 button { font: inherit; color: inherit; cursor: pointer; }
 button:disabled { opacity: .45; cursor: default; }
 h1 { font-size: 1.25rem; margin: 0; }
@@ -27,7 +27,7 @@ h2 { font-size: 1.05rem; margin: 1.4rem 0 .5rem; }
 .stars { font-weight: 700; min-width: 3.5rem; text-align: right; }
 .link { background: none; border: 0; padding: .6rem; color: var(--accent); font-weight: 600; min-height: 44px; }
 .link.danger { color: var(--bad); }
-.foot { margin-top: auto; text-align: center; padding: 1rem; }
+.foot { margin-top: auto; text-align: center; padding: .6rem 1rem; position: sticky; bottom: 0; background: var(--bg); }
 
 .card { background: var(--card); border-radius: var(--radius); padding: 1.2rem; margin: .5rem 1rem; box-shadow: 0 1px 3px rgba(20, 30, 60, .08); }
 .narrow label { display: block; margin: .8rem 0; font-weight: 600; }
