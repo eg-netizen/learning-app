@@ -59,12 +59,12 @@ input[type=text], input[type=password], input:not([type]), select { display: blo
 .clock.on { opacity: 1; }
 .timer { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 3.4rem; text-align: right; }
 .qbody { padding: .5rem 1rem; flex: 1; }
-.qtext { font-size: 1.35rem; font-weight: 600; margin: .6rem 0 1rem; white-space: pre-line; }
-.qimg { display: block; max-width: 100%; max-height: 24vh; width: auto; border-radius: 10px; margin: 0 auto .6rem; }
-.answer { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; font-size: 1.3rem; font-weight: 700; }
+.qtext { font-size: 1.25rem; font-weight: 600; margin: .4rem 0 .6rem; white-space: pre-line; }
+.qimg { display: block; max-width: 100%; max-height: 17vh; width: auto; border-radius: 10px; margin: 0 auto .6rem; }
+.answer { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; font-size: 1.3rem; font-weight: 700; }
 .lab { color: var(--muted); margin-left: .5rem; }
 .aff { color: var(--muted); }
-.field { min-width: 78px; min-height: 56px; padding: 0 .8rem; border: 3px solid var(--line); border-radius: 12px; background: #fff; font-size: 1.5rem; font-weight: 700; text-align: center; }
+.field { min-width: 78px; min-height: 50px; padding: 0 .8rem; border: 3px solid var(--line); border-radius: 12px; background: #fff; font-size: 1.5rem; font-weight: 700; text-align: center; }
 .field.active { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 .field.ok { border-color: var(--good); background: #eaf8f0; }
 .field.bad { border-color: var(--bad); background: #fdeeee; }
@@ -74,22 +74,22 @@ input[type=text], input[type=password], input:not([type]), select { display: blo
 .hints { margin-bottom: 1rem; }
 .hint { background: #fff8d9; border-left: 5px solid #f0c419; padding: .6rem .8rem; border-radius: 8px; margin-bottom: .5rem; font-size: .98rem; }
 
-.pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
-.key { min-height: clamp(46px, 7vh, 58px); border: 0; border-radius: 12px; background: #fff; border-bottom: 3px solid var(--line); font-size: 1.4rem; font-weight: 700; }
+.pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
+.key { min-height: clamp(40px, 6.2vh, 56px); border: 0; border-radius: 12px; background: #fff; border-bottom: 3px solid var(--line); font-size: 1.4rem; font-weight: 700; }
 .key:active { background: var(--line); }
 .key.fn { background: #eceffa; font-size: 1.05rem; }
 .key.span2 { grid-column: span 2; }
-.key.sm { min-height: 42px; font-size: 1rem; }
+.key.sm { min-height: clamp(34px, 5.2vh, 42px); font-size: 1rem; }
 .pad.text { display: block; }
-.row10 { display: grid; grid-template-columns: repeat(10, 1fr); gap: .25rem; margin-bottom: .5rem; }
-.row7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: .35rem; margin-bottom: .5rem; }
-.row3 { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: .4rem; margin-bottom: .5rem; }
+.row10 { display: grid; grid-template-columns: repeat(10, 1fr); gap: .25rem; margin-bottom: .35rem; }
+.row7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: .35rem; margin-bottom: .35rem; }
+.row3 { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: .4rem; margin-bottom: .35rem; }
 .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: .6rem; margin-bottom: .6rem; }
 .opts.ops { grid-template-columns: repeat(4, 1fr); }
 .optbtn { min-height: 62px; border: 3px solid var(--line); border-radius: 12px; background: #fff; font-size: 1.4rem; font-weight: 700; }
 .optbtn.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, #fff); }
 .qfoot { display: flex; gap: .6rem; align-items: center; padding: .6rem 1rem 1rem; position: sticky; bottom: 0; background: linear-gradient(transparent, var(--bg) 25%); }
-.qfoot .btn { margin: 0; flex: 1; }
+.qfoot .btn { margin: 0; flex: 1; min-height: 46px; padding: .5rem .6rem; white-space: nowrap; }
 
 /* results */
 .starsbig { font-size: 2.6rem; letter-spacing: .2rem; }
@@ -183,3 +183,15 @@ table { font-size: .8rem; }
 .homefoot .version { margin: 0; font-size: .72rem; }
 .htile .wtext b, .htile .wtext small { display: block; }
 .homefoot .link { min-height: 36px; padding: .3rem .6rem; }
+
+/* question screen: a fixed layout. The question area scrolls on its own if it must; the buttons never sit on top of it. */
+#app.qscreen { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+#app.qscreen .qhead { flex: none; }
+#app.qscreen .qbody { overflow-y: auto; min-height: 0; padding-bottom: .5rem; overscroll-behavior: contain; }
+#app.qscreen .qfoot { position: static; flex: none; background: var(--bg); padding: .5rem 1rem calc(.6rem + env(safe-area-inset-bottom)); }
+
+/* compact letter keyboard and reference line on the question screen */
+.pad.text .key { min-height: clamp(32px, 4.8vh, 42px); font-size: 1.2rem; }
+.pad.text .key.fn { font-size: 1rem; }
+.qbody .ref { font-size: .78rem; margin-bottom: .2rem; }
+#app.qscreen .qimg { max-height: 15vh; }

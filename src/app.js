@@ -393,7 +393,7 @@ function screenQuestion() {
   </main>
   <footer class="qfoot">
     ${fb ? `<button class="btn primary big" data-a="next">${r.idx + 1 >= r.qs.length ? 'See results' : 'Next'}</button>` : `
-      ${r.mode === 'practice' ? `<button class="btn" data-a="hint" ${q.hintsShown >= hints.length ? 'disabled' : ''}>💡 ${!hints.length ? 'No hint for this one' : q.hintsShown >= hints.length ? 'No more hints' : 'Hint ' + (q.hintsShown + 1) + ' of ' + hints.length}</button>` : ''}
+      ${r.mode === 'practice' ? `<button class="btn" data-a="hint" ${q.hintsShown >= hints.length ? 'disabled' : ''}>💡 ${!hints.length ? 'No hint' : q.hintsShown >= hints.length ? 'No more hints' : 'Hint ' + (q.hintsShown + 1) + ' of ' + hints.length}</button>` : ''}
       <button class="btn primary" data-a="check" ${hasAny ? '' : 'disabled'}>${r.mode === 'test' ? (r.idx + 1 >= r.qs.length ? 'Finish' : 'Next') : 'Check'}</button>
       ${r.mode === 'test' ? `<button class="link" data-a="skip">Skip</button>` : ''}`}
   </footer>`;
@@ -533,9 +533,15 @@ function render() {
   document.documentElement.style.setProperty('--accent', p ? p.color : COLORS[0]);
   // Keep her place on the page while she types, adds a hint or checks an answer; start at the top only on a new screen or question.
   const view = S.screen + '|' + (S.run && S.screen === 'question' ? S.run.idx : '');
-  const keepY = view === lastView ? window.scrollY : 0;
+  const same = view === lastView;
+  const keepY = same ? window.scrollY : 0;
+  const oldBody = root.querySelector('.qbody');
+  const keepBody = same && oldBody ? oldBody.scrollTop : 0;
   lastView = view;
+  root.classList.toggle('qscreen', S.screen === 'question');
   root.innerHTML = screens[S.screen]();
+  const newBody = root.querySelector('.qbody');
+  if (newBody) newBody.scrollTop = keepBody;
   if (S.screen === 'question' && S.run && timerVisible()) {
     if (!tick) tick = setInterval(updateTimer, 200);
     updateTimer();
