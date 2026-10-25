@@ -137,3 +137,7 @@ table { font-size: .8rem; }
 .setbtn.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, #fff); }
 .secrow { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin: -.2rem 0 .6rem .4rem; color: var(--muted); font-size: .95rem; }
 .ref { margin: 0 0 .4rem; color: var(--muted); font-size: .85rem; }
+
+/* saved session */
+.resume { border: 2px solid var(--accent); border-radius: 14px; padding: .8rem; margin: .5rem 0 1rem; background: color-mix(in srgb, var(--accent) 8%, #fff); }
+.resume small { display: block; color: var(--muted); margin: .2rem 0 .6rem; }

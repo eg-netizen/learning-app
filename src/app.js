@@ -48,6 +48,8 @@ function timerVisible() {
 }
 
 function startRun(mode) {
+  if ((D.paused || {})[S.profileId] && !confirm('You have a saved session. Starting a new one will throw the saved one away. Start new?')) return;
+  clearProgress(S.profileId);
   const bank = currentBank();
   if (!bank) { S.error = 'There are no questions yet. Ask a parent to add a question bank.'; render(); return; }
   const subjects = subjectsIn(bank.questions).map(x => x.name);
@@ -67,6 +69,35 @@ function startRun(mode) {
   beginQuestion();
   S.screen = 'question';
   S.error = '';
+  render();
+}
+
+/* Save and resume: one saved run per player. The question being answered restarts when she comes back. */
+function saveProgress() {
+  const r = S.run;
+  if (!r || !r.items.length || r.idx >= r.qs.length) return;
+  D.paused = D.paused || {};
+  D.paused[S.profileId] = { mode: r.mode, bankId: r.bankId, bankName: r.bankName, setKey: r.setKey || '', qids: r.qs.map(q => q.id), idx: r.items.length, items: r.items, streak: r.streak, best: r.best, startedAt: r.startedAt, savedAt: Date.now() };
+  persist();
+}
+
+function clearProgress(profileId) {
+  if (D.paused && D.paused[profileId]) { delete D.paused[profileId]; persist(); }
+}
+
+function resumeRun() {
+  const pz = (D.paused || {})[S.profileId];
+  const bank = pz && D.banks.find(b => b.id === pz.bankId);
+  const byId = bank ? new Map(bank.questions.map(q => [q.id, q])) : null;
+  const qs = pz && byId ? pz.qids.map(id => byId.get(id)) : [];
+  if (!pz || !qs.length || qs.some(q => !q)) {
+    clearProgress(S.profileId);
+    S.error = 'That saved session can no longer be opened because its questions have changed. Please start again.';
+    render(); return;
+  }
+  S.run = { mode: pz.mode, bankId: pz.bankId, bankName: pz.bankName, setKey: pz.setKey, qs, idx: pz.idx, items: pz.items, streak: pz.streak, best: pz.best, startedAt: pz.startedAt, q: null, session: null };
+  beginQuestion();
+  S.screen = 'question'; S.error = '';
   render();
 }
 
@@ -133,7 +164,7 @@ function advance() {
   const r = S.run;
   r.idx++;
   if (r.idx >= r.qs.length) finishRun();
-  else { beginQuestion(); render(); }
+  else { saveProgress(); beginQuestion(); render(); }
 }
 
 function finishRun() {
@@ -144,6 +175,7 @@ function finishRun() {
     startedAt: r.startedAt, endedAt: Date.now(), items: r.items,
   };
   D.sessions.push(session);
+  if (D.paused) delete D.paused[S.profileId];
   persist();
   r.session = session;
   r.prevSummary = prior ? summarise(prior.items) : null;
@@ -210,6 +242,11 @@ function screenHome() {
   const sets = allSets.filter(x => !S.cfg.subject || x.subject === S.cfg.subject);
   if (!sets.some(x => x.key === S.cfg.setKey)) { S.cfg.setKey = ''; S.cfg.sec = ''; }
   const lastFor = (set) => mine.filter(s => s.setKey === set.key && s.bankId === bank.id && s.items.length === set.n).slice(-1)[0];
+  const pz = (D.paused || {})[S.profileId];
+  const resumeCard = pz ? `<div class="resume"><b>Carry on where you left off</b>
+      <small>${esc(pz.bankName)} · ${pz.mode === 'test' ? 'test' : 'practice'} · question ${pz.idx + 1} of ${pz.qids.length}</small>
+      <button class="btn primary big" data-a="resume">Continue</button>
+      <button class="link danger" data-a="discardPaused">Throw it away</button></div>` : '';
   const setPicker = sets.length ? `<div class="sets"><h3>What to practise</h3>
       <button class="setbtn ${S.cfg.setKey === '' ? 'on' : ''}" data-a="pickSet" data-key="" data-sec=""><b>🎲 Random mix</b><small>questions picked from the bank</small></button>
       ${sets.map(x => { const on = S.cfg.setKey === x.key; const l = lastFor(x); const ls = l ? summarise(l.items) : null;
@@ -224,6 +261,7 @@ function screenHome() {
   <main class="card narrow">
     ${lastSum ? `<p class="muted">Last time: ${lastSum.correct} out of ${lastSum.n} (${last.mode === 'test' ? 'test' : 'practice'})</p>` : '<p class="muted">Pick a mode to begin.</p>'}
     ${D.banks.length > 1 ? `<label>Questions from <select data-change="bank">${D.banks.map(b => `<option value="${b.id}" ${b.id === S.cfg.bankId ? 'selected' : ''}>${esc(b.name)} (${b.questions.length})</option>`).join('')}</select></label>` : ''}
+    ${resumeCard}
     ${subjectPicker}
     ${setPicker}
     ${S.cfg.setKey ? '' : `<label>How many questions <select data-change="count">${[5, 10, 15, 20].map(n => `<option ${n === S.cfg.count ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`}
@@ -446,7 +484,16 @@ const actions = {
     if (q.feedback || q.hintsShown >= (Q.hints || []).length) return;
     touch(); q.hintsShown++; render();
   },
-  quit() { if (confirm('Stop this session? Your answers so far will not be saved.')) { S.run = null; S.screen = 'home'; render(); } },
+  quit() {
+    const r = S.run;
+    if (r && r.items.length) {
+      if (!confirm('Save your place and stop for now? You can carry on later from the start screen.')) return;
+      saveProgress();
+    } else if (!confirm('Stop this session?')) return;
+    S.run = null; S.screen = 'home'; render();
+  },
+  resume() { resumeRun(); },
+  discardPaused() { if (confirm('Throw away the saved session?')) { clearProgress(S.profileId); render(); } },
   home() { S.run = null; S.screen = 'home'; render(); },
   toggleTimer() { const p = profile(); p.showTimer = !p.showTimer; persist(); render(); },
   openParent() { S.error = ''; S.notice = ''; S.screen = S.parent.ok ? 'parent' : 'pin'; render(); },
@@ -458,6 +505,7 @@ const actions = {
     if (!p || !confirm('Remove ' + p.name + ' and all of their results?')) return;
     D.profiles = D.profiles.filter(x => x.id !== p.id);
     D.sessions = D.sessions.filter(s => s.profileId !== p.id);
+    if (D.paused) delete D.paused[p.id];
     if (S.profileId === p.id) S.profileId = null;
     persist(); render();
   },
