@@ -394,7 +394,7 @@ function screenQuestion() {
   <footer class="qfoot">
     ${fb ? `<button class="btn primary big" data-a="next">${r.idx + 1 >= r.qs.length ? 'See results' : 'Next'}</button>` : `
       ${r.mode === 'practice' ? `<button class="btn" data-a="hint" ${q.hintsShown >= hints.length ? 'disabled' : ''}>💡 ${!hints.length ? 'No hint for this one' : q.hintsShown >= hints.length ? 'No more hints' : 'Hint ' + (q.hintsShown + 1) + ' of ' + hints.length}</button>` : ''}
-      <button class="btn primary" data-a="check" ${hasAny ? '' : 'disabled'}>Check</button>
+      <button class="btn primary" data-a="check" ${hasAny ? '' : 'disabled'}>${r.mode === 'test' ? (r.idx + 1 >= r.qs.length ? 'Finish' : 'Next') : 'Check'}</button>
       ${r.mode === 'test' ? `<button class="link" data-a="skip">Skip</button>` : ''}`}
   </footer>`;
 }
