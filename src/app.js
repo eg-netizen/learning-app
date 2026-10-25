@@ -490,15 +490,20 @@ function parentData() {
 const screens = { profiles: screenProfiles, home: screenHome, question: screenQuestion, results: screenResults, pin: screenPin, parent: screenParent };
 let tick = null;
 
+let lastView = '';
 function render() {
   const p = profile();
   document.documentElement.style.setProperty('--accent', p ? p.color : COLORS[0]);
+  // Keep her place on the page while she types, adds a hint or checks an answer; start at the top only on a new screen or question.
+  const view = S.screen + '|' + (S.run && S.screen === 'question' ? S.run.idx : '');
+  const keepY = view === lastView ? window.scrollY : 0;
+  lastView = view;
   root.innerHTML = screens[S.screen]();
   if (S.screen === 'question' && S.run && timerVisible()) {
     if (!tick) tick = setInterval(updateTimer, 200);
     updateTimer();
   } else if (tick) { clearInterval(tick); tick = null; }
-  window.scrollTo(0, 0);
+  window.scrollTo(0, keepY);
 }
 
 function updateTimer() {
