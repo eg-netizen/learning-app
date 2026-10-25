@@ -146,3 +146,5 @@ table { font-size: .8rem; }
 
 .carried { text-align: left; background: #fff7e0; border-left: 4px solid #d9a21b; border-radius: 6px; padding: .6rem .8rem; margin: .8rem 0; }
 .carried div { margin-top: .4rem; }
+
+.version { margin-top: .5rem; color: var(--muted); font-size: .8rem; }

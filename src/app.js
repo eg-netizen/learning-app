@@ -1,4 +1,5 @@
 import { followMatches } from './follow.js';
+import { BUILD } from './version.js';
 import { validateBank, subjectsIn, subjectOf, setsIn, setQuestions, pickRandom } from './bank.js';
 import { markQuestion, answerText } from './marking.js';
 import { summarise, diagnose, childTips, fmtSec, pct, stars } from './report.js';
@@ -234,7 +235,13 @@ function screenProfiles() {
   ${footerParent()}`;
 }
 
-function footerParent() { return `<footer class="foot"><button class="link" data-a="openParent">Parent area</button></footer>`; }
+function versionLine() {
+  if (!BUILD.time) return 'Local copy, not deployed';
+  const when = new Date(BUILD.time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  return 'Updated ' + when + ' · build ' + BUILD.commit;
+}
+
+function footerParent() { return `<footer class="foot"><button class="link" data-a="openParent">Parent area</button><div class="version">${esc(versionLine())}</div></footer>`; }
 
 function colorPicker(selected) {
   return `<fieldset class="colors"><legend>Colour</legend>${COLORS.map((c, i) => `<label class="swatch" style="--c:${c}"><input type="radio" name="color" value="${c}" ${(selected ? selected === c : i === 0) ? 'checked' : ''}><span></span></label>`).join('')}</fieldset>`;

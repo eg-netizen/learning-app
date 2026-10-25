@@ -1,7 +1,7 @@
 // Network-first service worker: always try for the newest version, fall back to the cache offline.
-const CACHE = 'learning-app-v1';
+const CACHE = 'learning-app-v2';
 const SHELL = ['./', 'index.html', 'styles.css', 'manifest.webmanifest', 'icon.svg', 'data/sample-bank.json',
-  'src/app.js', 'src/bank.js', 'src/marking.js', 'src/report.js', 'src/store.js'];
+  'src/app.js', 'src/bank.js', 'src/follow.js', 'src/marking.js', 'src/report.js', 'src/store.js', 'src/version.js'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

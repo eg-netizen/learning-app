@@ -40,6 +40,10 @@ jobs:
         run: |
           mkdir _site
           cp -r index.html styles.css manifest.webmanifest icon.svg sw.js src data _site/
+      - name: Stamp the deploy time and commit into the app
+        run: |
+          printf "export const BUILD = { time: '%s', commit: '%s' };\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${GITHUB_SHA::7}" > _site/src/version.js
+          cat _site/src/version.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
