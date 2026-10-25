@@ -1,5 +1,7 @@
 import { followMatches } from './follow.js';
 import { BUILD } from './version.js';
+import { FIREBASE_CONFIG } from './firebase-config.js';
+import { createSync } from './sync.js';
 import { validateBank, subjectsIn, subjectOf, setsIn, setQuestions, pickRandom } from './bank.js';
 import { markQuestion, answerText } from './marking.js';
 import { summarise, diagnose, childTips, fmtSec, pct, stars } from './report.js';
@@ -11,6 +13,7 @@ const S = {
   screen: 'profiles',
   profileId: null,
   run: null,
+  cloud: { state: FIREBASE_CONFIG ? 'starting' : 'off', user: '', at: 0, message: '' },
   cfg: { count: 10, bankId: null, subject: '', setKey: '', sec: '', picked: false, how: 'random' },
   parent: { ok: false, tab: 'results', profileId: null, openSession: null },
   notice: '',
@@ -26,7 +29,13 @@ const pick = (list) => list[Math.floor(Math.random() * list.length)];
 // The chosen bank, else the most recently imported one, else the built-in sample.
 const currentBank = () => D.banks.find(b => b.id === S.cfg.bankId) || [...D.banks].reverse().find(b => !b.builtIn) || D.banks[0];
 const profile = () => D.profiles.find(p => p.id === S.profileId);
-const persist = () => { if (!save(D)) S.error = 'Could not save: this browser is out of storage space.'; };
+let cloudSync = null; // the running sync, once signed in
+let cloud = null; // the Firebase connection
+let cloudMod = null;
+const persist = () => {
+  if (!save(D)) S.error = 'Could not save: this browser is out of storage space.';
+  else if (cloudSync) cloudSync.notify();
+};
 
 /* ---------------------------------------------------------------- sample bank */
 
@@ -217,6 +226,7 @@ function screenProfiles() {
         ${colorPicker()}
         <button class="btn primary big" type="submit">Let's go</button>
       </form>
+      ${FIREBASE_CONFIG && !S.cloud.user ? '<p class="muted">Already set up on another device?</p><button class="btn" data-a="openSignin">Sign in to sync</button>' : ''}
     </main>
     ${footerParent()}`;
   }
@@ -235,10 +245,22 @@ function screenProfiles() {
   ${footerParent()}`;
 }
 
+function syncLabel() {
+  if (!FIREBASE_CONFIG) return '';
+  const c = S.cloud;
+  if (c.state === 'synced') return ' · ☁ synced ' + new Date(c.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (c.state === 'connecting') return ' · ☁ syncing…';
+  if (c.state === 'error') return ' · ☁ sync problem';
+  if (c.state === 'signedout') return ' · ☁ not signed in';
+  if (c.state === 'offline') return ' · ☁ offline';
+  return '';
+}
+
 function versionLine() {
-  if (!BUILD.time) return 'Local copy, not deployed';
+  const sync = syncLabel();
+  if (!BUILD.time) return 'Local copy, not deployed' + sync;
   const when = new Date(BUILD.time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-  return 'Updated ' + when + ' · build ' + BUILD.commit;
+  return 'Updated ' + when + ' · build ' + BUILD.commit + sync;
 }
 
 function footerParent() { return `<footer class="foot"><button class="link" data-a="openParent">Parent area</button><div class="version">${esc(versionLine())}</div></footer>`; }
@@ -451,12 +473,13 @@ function screenPin() {
 
 function parentTabs() {
   const tabs = [['results', 'Results'], ['players', 'Players'], ['banks', 'Questions'], ['data', 'Data']];
+  if (FIREBASE_CONFIG) tabs.push(['sync', 'Sync']);
   return `<nav class="tabs">${tabs.map(([k, l]) => `<button class="${S.parent.tab === k ? 'on' : ''}" data-a="tab" data-tab="${k}">${l}</button>`).join('')}</nav>`;
 }
 
 function screenParent() {
   const t = S.parent.tab;
-  const body = t === 'results' ? parentResults() : t === 'players' ? parentPlayers() : t === 'banks' ? parentBanks() : parentData();
+  const body = t === 'results' ? parentResults() : t === 'players' ? parentPlayers() : t === 'banks' ? parentBanks() : t === 'sync' ? parentSync() : parentData();
   return `<header class="top"><button class="link" data-a="leaveParent">‹ Exit</button><h1>Parent area</h1><span></span></header>
   ${parentTabs()}
   <main class="pwrap">${S.notice ? `<p class="notice">${esc(S.notice)}</p>` : ''}${S.error ? `<p class="err">${esc(S.error)}</p>` : ''}${body}</main>`;
@@ -524,7 +547,41 @@ function parentData() {
 
 /* ---------------------------------------------------------------- render + events */
 
-const screens = { profiles: screenProfiles, home: screenHome, question: screenQuestion, results: screenResults, pin: screenPin, parent: screenParent };
+function cloudForm(submitLabel) {
+  return `<form data-form="cloudSignIn">
+      <label>Email <input name="email" type="email" autocomplete="username" autocapitalize="none" required></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+      ${S.cloud.message ? `<p class="err">${esc(S.cloud.message)}</p>` : ''}
+      <button class="btn primary big" type="submit">${submitLabel}</button>
+    </form>`;
+}
+
+function screenSignin() {
+  return `${header('Sign in to sync')}
+  <main class="card narrow">
+    <p>Use the family email and password for this app. Your players, results and questions will appear on this device.</p>
+    ${cloudForm('Sign in')}
+    <button class="link" data-a="leaveSignin">‹ Back</button>
+  </main>`;
+}
+
+function parentSync() {
+  const c = S.cloud;
+  if (c.state === 'off') return '<p>Sync is not set up for this app.</p>';
+  if (c.state === 'offline' || c.state === 'starting' && !cloud) return `<p>Sync could not start${c.message ? ': ' + esc(c.message) : ''}. This usually means there is no internet right now. Everything still works on this device.</p><button class="btn" data-a="cloudRetry">Try again</button>`;
+  if (!c.user) return `<h2>Sync between devices</h2><p>Sign in with the family email and password. Players, results, saved sessions, question banks and the PIN are then kept the same on every device that signs in.</p>${cloudForm('Sign in')}`;
+  const when = c.at ? new Date(c.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'not yet';
+  const label = { synced: 'Up to date', connecting: 'Syncing…', error: 'There is a problem' }[c.state] || c.state;
+  return `<h2>Sync between devices</h2>
+    <p>Signed in as <b>${esc(c.user)}</b>.</p>
+    <p><b>${label}.</b> Last synced: ${esc(when)}.${c.state === 'error' && c.message ? `<br><span class="err">${esc(c.message)}</span>` : ''}</p>
+    <p class="muted">${D.profiles.length} player${D.profiles.length === 1 ? '' : 's'}, ${D.sessions.length} result${D.sessions.length === 1 ? '' : 's'}, ${D.banks.filter(b => !b.builtIn).length} question bank${D.banks.filter(b => !b.builtIn).length === 1 ? '' : 's'} on this device.</p>
+    <button class="btn primary" data-a="cloudSyncNow">Sync now</button>
+    <button class="btn" data-a="cloudSignOut">Sign out of this device</button>
+    <p class="muted">Signing out keeps everything already on this device. It just stops syncing.</p>`;
+}
+
+const screens = { signin: screenSignin, profiles: screenProfiles, home: screenHome, question: screenQuestion, results: screenResults, pin: screenPin, parent: screenParent };
 let tick = null;
 
 let lastView = '';
@@ -586,6 +643,14 @@ const actions = {
     S.run = null; S.screen = 'home'; S.cfg.picked = false; render();
   },
   resume() { resumeRun(); },
+  openSignin() { S.cloud.message = ''; S.screen = 'signin'; render(); },
+  leaveSignin() { S.screen = 'profiles'; render(); },
+  cloudRetry() { S.cloud.message = ''; startCloudSync(); render(); },
+  cloudSyncNow() { if (cloudSync) cloudSync.syncNow(); },
+  async cloudSignOut() {
+    if (!confirm('Sign out of sync on this device? Everything already here stays.')) return;
+    try { await cloud.signOut(); } catch (e) { /* the auth listener updates the screen */ }
+  },
   forgotPin() { S.pinReset = true; S.error = ''; render(); },
   cancelPinReset() { S.pinReset = false; S.error = ''; render(); },
   discardPaused() { if (confirm('Throw away the saved session?')) { clearProgress(S.profileId); render(); } },
@@ -612,7 +677,7 @@ const actions = {
     persist(); render();
   },
   export() {
-    const blob = new Blob([JSON.stringify(D)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(Object.assign({}, D, { sync: undefined }))], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'learning-app-backup-' + new Date().toISOString().slice(0, 10) + '.json';
@@ -621,8 +686,9 @@ const actions = {
   },
   changePin() { if (confirm('Change the PIN? You will set a new one straight away.')) { D.pinHash = null; persist(); S.parent.ok = false; S.screen = 'pin'; render(); } },
   reset() {
-    if (prompt('This erases all players, results and imported questions on this device. Type RESET to confirm.') === 'RESET') {
-      D = Object.assign({}, load(), { v: 1, profiles: [], banks: [], sessions: [], pinHash: null, lastProfileId: null });
+    const also = S.cloud.user ? ' Because sync is on, this ALSO erases them from every other device and the cloud.' : '';
+    if (prompt('This erases all players, results and imported questions on this device.' + also + ' Type RESET to confirm.') === 'RESET') {
+      D = Object.assign({}, load(), { v: 1, profiles: [], banks: [], sessions: [], paused: {}, pinHash: null, lastProfileId: null });
       persist(); S.parent.ok = false; S.profileId = null; S.screen = 'profiles';
       ensureSampleBank().then(render); render();
     }
@@ -646,6 +712,14 @@ root.addEventListener('submit', async (e) => {
     D.profiles.push({ id: uid(), name, color: fd.get('color') || COLORS[0], showTimer: false, childCanToggleTimer: true });
     persist(); S.error = '';
     S.addingPlayer = false;
+    render();
+  } else if (kind === 'cloudSignIn') {
+    if (!cloud) { S.cloud.message = 'Sync is still starting. Wait a moment and try again.'; render(); return; }
+    S.cloud.message = '';
+    try {
+      await cloud.signIn(String(fd.get('email') || '').trim(), String(fd.get('password') || ''));
+      if (S.screen === 'signin') S.screen = 'profiles';
+    } catch (err) { S.cloud.message = cloudMod.friendlyError(err); }
     render();
   } else if (kind === 'pinReset') {
     if (String(fd.get('word') || '').trim().toUpperCase() !== 'RESET') { S.error = 'Please type the word RESET.'; render(); return; }
@@ -688,6 +762,7 @@ function readFile(file, kind) {
       } else {
         if (!raw || !Array.isArray(raw.profiles) || !Array.isArray(raw.sessions) || !Array.isArray(raw.banks)) throw new Error('This does not look like a backup from this app.');
         if (!confirm('Replace everything on this device with this backup?')) return;
+        delete raw.sync;
         D = Object.assign({}, load(), raw);
         persist(); S.notice = 'Backup restored.';
       }
@@ -703,5 +778,41 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
+function refreshAfterSync() {
+  // Never redraw in the middle of a question; everywhere else, show what just arrived.
+  if (S.screen === 'question') return;
+  if (S.screen === 'parent' && S.parent.tab !== 'sync' && S.parent.tab !== 'players' && S.parent.tab !== 'results' && S.parent.tab !== 'banks') return;
+  render();
+}
+
+async function startCloudSync() {
+  if (!FIREBASE_CONFIG) return;
+  try {
+    cloudMod = await import('./cloud.js');
+    cloud = await cloudMod.startCloud(FIREBASE_CONFIG);
+  } catch (e) {
+    cloud = null;
+    S.cloud = Object.assign(S.cloud, { state: 'offline', message: String((e && e.message) || e) });
+    refreshAfterSync();
+    return;
+  }
+  cloud.onAuth((user) => {
+    if (cloudSync) { cloudSync.stop(); cloudSync = null; }
+    if (!user) { S.cloud = Object.assign(S.cloud, { state: 'signedout', user: '', message: '' }); refreshAfterSync(); return; }
+    S.cloud = Object.assign(S.cloud, { state: 'connecting', user: user.email || 'family account', message: '' });
+    cloudSync = createSync({
+      adapter: cloud.adapter(user.uid),
+      getD: () => D,
+      onApplied: () => { save(D); refreshAfterSync(); },
+      onStatus: (s) => {
+        S.cloud = Object.assign(S.cloud, s, { user: user.email || 'family account' });
+        if (S.screen === 'profiles' || S.screen === 'home' || (S.screen === 'parent' && S.parent.tab === 'sync')) render();
+      },
+    });
+    cloudSync.start();
+  });
+}
+
 render();
+startCloudSync();
 ensureSampleBank().then(() => { if (S.screen === 'home' || S.screen === 'parent') render(); });
