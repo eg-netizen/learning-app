@@ -11,7 +11,7 @@ const S = {
   screen: 'profiles',
   profileId: null,
   run: null,
-  cfg: { count: 10, bankId: null, subject: '', setKey: '', sec: '' },
+  cfg: { count: 10, bankId: null, subject: '', setKey: '', sec: '', picked: false, how: 'random' },
   parent: { ok: false, tab: 'results', profileId: null, openSession: null },
   notice: '',
   error: '',
@@ -247,47 +247,77 @@ function colorPicker(selected) {
   return `<fieldset class="colors"><legend>Colour</legend>${COLORS.map((c, i) => `<label class="swatch" style="--c:${c}"><input type="radio" name="color" value="${c}" ${(selected ? selected === c : i === 0) ? 'checked' : ''}><span></span></label>`).join('')}</fieldset>`;
 }
 
+const SUBJECT_ICON = { 'Mental Arithmetic': '🧮', 'Problem Solving': '🧩' };
+
 function screenHome() {
   const p = profile();
   const mine = D.sessions.filter(s => s.profileId === p.id);
   const totalStars = mine.reduce((a, s) => a + stars(summarise(s.items).accuracy), 0);
-  const last = mine.slice(-1)[0];
-  const lastSum = last ? summarise(last.items) : null;
   const bank = currentBank();
   if (bank) S.cfg.bankId = bank.id;
   const subjects = bank ? subjectsIn(bank.questions) : [];
   const allSets = bank ? setsIn(bank.questions) : [];
+  // With no subjects in the bank there is nothing to choose first, so go straight to step 2.
+  const picked = S.cfg.picked || !subjects.length;
   if (!subjects.some(x => x.name === S.cfg.subject)) S.cfg.subject = '';
   const sets = allSets.filter(x => !S.cfg.subject || x.subject === S.cfg.subject);
+  if (S.cfg.how === 'booklet' && !sets.length) S.cfg.how = 'random';
+  if (S.cfg.how !== 'booklet') { S.cfg.setKey = ''; S.cfg.sec = ''; }
   if (!sets.some(x => x.key === S.cfg.setKey)) { S.cfg.setKey = ''; S.cfg.sec = ''; }
-  const lastFor = (set) => mine.filter(s => s.setKey === set.key && s.bankId === bank.id && s.items.length === set.n).slice(-1)[0];
   const pz = (D.paused || {})[S.profileId];
-  const resumeCard = pz ? `<div class="resume"><b>Carry on where you left off</b>
-      <small>${esc(pz.bankName)} · ${pz.mode === 'test' ? 'test' : 'practice'} · question ${pz.idx + 1} of ${pz.qids.length}</small>
-      <button class="btn primary big" data-a="resume">Continue</button>
-      <button class="link danger" data-a="discardPaused">Throw it away</button></div>` : '';
-  const setPicker = sets.length ? `<div class="sets"><h3>What to practise</h3>
-      <button class="setbtn ${S.cfg.setKey === '' ? 'on' : ''}" data-a="pickSet" data-key="" data-sec=""><b>🎲 Random mix</b><small>questions picked from the bank</small></button>
-      ${sets.map(x => { const on = S.cfg.setKey === x.key; const l = lastFor(x); const ls = l ? summarise(l.items) : null;
-        return `<button class="setbtn ${on && !S.cfg.sec ? 'on' : ''}" data-a="pickSet" data-key="${esc(x.key)}" data-sec=""><b>📖 ${esc(x.bookTitle)} · ${esc(x.title)}</b><small>${x.n} questions in booklet order${x.page ? ' · page ' + x.page : ''}${ls ? ' · last ' + ls.correct + '/' + ls.n : ''}</small></button>
-        ${on && x.sections.length > 1 ? `<div class="secrow">Just one section: ${x.sections.map(sc => `<button class="chip ${S.cfg.sec === sc.name ? 'on' : ''}" data-a="pickSet" data-key="${esc(x.key)}" data-sec="${esc(sc.name)}">${esc(sc.name)} <small>${sc.n}</small></button>`).join('')}</div>` : ''}`; }).join('')}
-    </div>` : '';
-  const subjectPicker = subjects.length > 1 ? `<div class="subjects" role="group" aria-label="Subject">
-      <button class="chip ${S.cfg.subject === '' ? 'on' : ''}" data-a="subject" data-s="">Mixed <small>${bank.questions.length}</small></button>
-      ${subjects.map(x => `<button class="chip ${S.cfg.subject === x.name ? 'on' : ''}" data-a="subject" data-s="${esc(x.name)}">${esc(x.name)} <small>${x.n}</small></button>`).join('')}
-    </div>` : '';
-  return `<header class="top"><button class="link" data-a="switchPlayer">‹ Switch player</button><h1>Hi ${esc(p.name)}!</h1><span class="stars">⭐ ${totalStars}</span></header>
-  <main class="card narrow">
-    ${lastSum ? `<p class="muted">Last time: ${lastSum.correct} out of ${lastSum.n} (${last.mode === 'test' ? 'test' : 'practice'})</p>` : '<p class="muted">Pick a mode to begin.</p>'}
-    ${D.banks.length > 1 ? `<label>Questions from <select data-change="bank">${D.banks.map(b => `<option value="${b.id}" ${b.id === S.cfg.bankId ? 'selected' : ''}>${esc(b.name)} (${b.questions.length})</option>`).join('')}</select></label>` : ''}
-    ${resumeCard}
-    ${subjectPicker}
-    ${setPicker}
-    ${S.cfg.setKey ? '' : `<label>How many questions <select data-change="count">${[5, 10, 15, 20].map(n => `<option ${n === S.cfg.count ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`}
-    ${S.error ? `<p class="err">${esc(S.error)}</p>` : ''}
-    <button class="btn primary big" data-a="start" data-mode="practice">Practice <small>hints and instant feedback</small></button>
-    <button class="btn big" data-a="start" data-mode="test">Test <small>timed, no hints, results at the end</small></button>
-  </main>`;
+  const resumeCard = pz ? `<div class="resume"><div><b>Carry on where you left off</b>
+      <small>${esc(pz.bankName.split(' · ').slice(-2).join(' · '))} · question ${pz.idx + 1} of ${pz.qids.length}</small>
+      <button class="link danger" data-a="discardPaused">Throw it away</button></div>
+      <button class="btn primary" data-a="resume">Continue</button></div>` : '';
+
+  const badgeFor = (set) => {
+    if (pz && bank && pz.bankId === bank.id && pz.setKey === set.key) return `<span class="hbadge p">${pz.idx} of ${pz.qids.length} done</span>`;
+    const l = mine.filter(s => s.setKey === set.key && s.bankId === bank.id && s.items.length === set.n).slice(-1)[0];
+    if (l) { const ls = summarise(l.items); return `<span class="hbadge ok">last ${ls.correct}/${ls.n}</span>`; }
+    return '<span class="hbadge n">not started</span>';
+  };
+
+  let top; let body; let summary; let ready = false;
+  const countOpts = [5, 10, 15, 20].map(n => `<option ${n === S.cfg.count ? 'selected' : ''}>${n}</option>`).join('');
+  const subjectLabel = S.cfg.subject || 'Everything';
+  const set = sets.find(x => x.key === S.cfg.setKey);
+  const pool = bank ? (S.cfg.subject ? bank.questions.filter(q => subjectOf(q) === S.cfg.subject) : bank.questions) : [];
+
+  if (!picked) {
+    top = `<button class="link" data-a="switchPlayer">‹ Switch player</button><h1>Hi ${esc(p.name)}!</h1><span class="stars">⭐ ${totalStars}</span>`;
+    body = `${resumeCard}<h3>What shall we practise?</h3>
+      <div class="htiles">
+        ${subjects.map(x => `<button class="htile" data-a="pickSubject" data-s="${esc(x.name)}"><span class="ic">${SUBJECT_ICON[x.name] || '📚'}</span><b>${esc(x.name)}</b><small>${x.n} questions</small></button>`).join('')}
+        <button class="htile wide" data-a="pickSubject" data-s=""><span class="ic">🎲</span><span class="wtext"><b>A bit of everything</b><small>${bank ? bank.questions.length : 0} questions</small></span></button>
+      </div>
+      ${D.banks.length > 1 ? `<label class="bankpick">Questions from <select data-change="bank">${D.banks.map(b => `<option value="${b.id}" ${b.id === S.cfg.bankId ? 'selected' : ''}>${esc(b.name)} (${b.questions.length})</option>`).join('')}</select></label>` : ''}`;
+    summary = 'Pick something to start';
+  } else {
+    top = `${subjects.length ? '<button class="link" data-a="backHome">‹ Back</button>' : '<button class="link" data-a="switchPlayer">‹ Switch player</button>'}<h1>${esc(subjects.length ? subjectLabel : 'Hi ' + p.name + '!')}</h1><span class="stars">⭐ ${totalStars}</span>`;
+    const booklet = S.cfg.how === 'booklet';
+    body = `${subjects.length ? '' : resumeCard}<h3>How?</h3>
+      <div class="hopt ${!booklet ? 'on' : ''}" ${booklet ? 'data-a="pickHow" data-how="random" role="button" tabindex="0"' : ''}><div><b>🎲 Random mix</b><small>questions picked from the bank</small></div>
+        ${booklet ? '<span>›</span>' : `<select class="hsel" data-change="count" aria-label="How many questions">${countOpts}</select>`}</div>
+      ${sets.length ? `<button class="hopt ${booklet ? 'on' : ''}" data-a="pickHow" data-how="booklet"><div><b>📖 Booklet tests, in order</b><small>just like the book</small></div><span>${booklet ? '▾' : '›'}</span></button>` : ''}
+      ${booklet ? `<h3>${S.cfg.subject ? 'Your booklet tests' : 'Booklet tests'}</h3>
+        ${sets.map(x => { const on = S.cfg.setKey === x.key;
+          return `<button class="hopt ${on ? 'on' : ''}" data-a="pickSet" data-key="${esc(x.key)}" data-sec=""><div><b>${S.cfg.subject ? '' : esc(x.bookTitle) + ' · '}${esc(x.title)}</b><small>${x.page ? 'page ' + x.page + ' · ' : ''}${x.n} questions</small></div>${badgeFor(x)}</button>
+          ${on && x.sections.length > 1 ? `<div class="chips"><button class="chip ${S.cfg.sec === '' ? 'on' : ''}" data-a="pickSet" data-key="${esc(x.key)}" data-sec="">Whole test</button>${x.sections.map(sc => `<button class="chip ${S.cfg.sec === sc.name ? 'on' : ''}" data-a="pickSet" data-key="${esc(x.key)}" data-sec="${esc(sc.name)}">${esc(sc.name)}</button>`).join('')}</div>` : ''}`; }).join('')}` : ''}`;
+    if (booklet) {
+      if (set) {
+        const n = S.cfg.sec ? (set.sections.find(x => x.name === S.cfg.sec) || { n: set.n }).n : set.n;
+        summary = `<b>${esc(set.title)}${S.cfg.sec ? ' · Section ' + esc(S.cfg.sec) : ''}</b> · ${n} questions, in order`; ready = true;
+      } else summary = 'Pick a test';
+    } else {
+      summary = `<b>${esc(subjectLabel)}</b> · random mix · ${Math.min(S.cfg.count, pool.length)} questions`; ready = pool.length > 0;
+    }
+  }
+  return `<header class="top">${top}</header>
+  <main class="homebody">${body}${S.error ? `<p class="err">${esc(S.error)}</p>` : ''}</main>
+  <div class="startbar"><div class="sum">${summary}</div>
+    <div class="btns"><button class="hbtn ${ready ? 'p' : ''}" data-a="start" data-mode="practice" ${ready ? '' : 'disabled'}>🌱 Practice<small>hints and feedback</small></button>
+      <button class="hbtn" data-a="start" data-mode="test" ${ready ? '' : 'disabled'}>⏱ Test<small>timed, no hints</small></button></div>
+    <div class="homefoot"><button class="link" data-a="openParent">Parent area</button><span class="version">${esc(versionLine())}</span></div></div>`;
 }
 
 function fieldHTML(Q, q, i) {
@@ -527,7 +557,9 @@ const actions = {
   switchPlayer() { S.addingPlayer = false; S.profileId = null; S.screen = 'profiles'; render(); },
   start(el) { startRun(el.dataset.mode); },
   pickSet(el) { S.cfg.setKey = el.dataset.key; S.cfg.sec = el.dataset.sec || ''; render(); },
-  subject(el) { S.cfg.subject = el.dataset.s; render(); },
+  pickSubject(el) { S.cfg.picked = true; S.cfg.subject = el.dataset.s; S.cfg.how = 'random'; S.cfg.setKey = ''; S.cfg.sec = ''; render(); },
+  backHome() { S.cfg.picked = false; S.cfg.how = 'random'; S.cfg.setKey = ''; S.cfg.sec = ''; render(); },
+  pickHow(el) { S.cfg.how = el.dataset.how; S.cfg.setKey = ''; S.cfg.sec = ''; render(); },
   focus(el) { const q = S.run.q; if (q.feedback) return; touch(); q.active = Number(el.dataset.i); render(); },
   key(el) { pressKey(el.dataset.k); },
   pickval(el) { pickValue(el.dataset.v); },
@@ -545,7 +577,7 @@ const actions = {
       if (!confirm('Save your place and stop for now? You can carry on later from the start screen.')) return;
       saveProgress();
     } else if (!confirm('Stop this session?')) return;
-    S.run = null; S.screen = 'home'; render();
+    S.run = null; S.screen = 'home'; S.cfg.picked = false; render();
   },
   resume() { resumeRun(); },
   forgotPin() { S.pinReset = true; S.error = ''; render(); },
@@ -627,8 +659,8 @@ root.addEventListener('change', (e) => {
   const el = e.target.closest('[data-change]');
   if (!el) return;
   const kind = el.dataset.change;
-  if (kind === 'count') { S.cfg.count = Number(el.value); }
-  else if (kind === 'bank') { S.cfg.bankId = el.value; }
+  if (kind === 'count') { S.cfg.count = Number(el.value); render(); }
+  else if (kind === 'bank') { S.cfg.bankId = el.value; S.cfg.picked = false; S.cfg.subject = ''; render(); }
   else if (kind === 'resultsPlayer') { S.parent.profileId = el.value; S.parent.openSession = null; render(); }
   else if (kind === 'timerDefault') { D.profiles.find(p => p.id === el.dataset.id).showTimer = el.checked; persist(); }
   else if (kind === 'timerToggle') { D.profiles.find(p => p.id === el.dataset.id).childCanToggleTimer = el.checked; persist(); }
