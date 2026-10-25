@@ -1,3 +1,4 @@
+import { followMatches } from './follow.js';
 import { validateBank, subjectsIn, subjectOf, setsIn, setQuestions, pickRandom } from './bank.js';
 import { markQuestion, answerText } from './marking.js';
 import { summarise, diagnose, childTips, fmtSec, pct, stars } from './report.js';
@@ -148,15 +149,26 @@ function submit(skip) {
   let readMs; let workMs;
   if (q.firstAt === null) { readMs = total; workMs = 0; }
   else { readMs = q.firstAt - q.shownAt - q.pausedAtFirst; workMs = t - q.firstAt - (q.paused - q.pausedAtFirst); }
-  const res = skip ? { correct: false, perField: q.values.map(() => false) } : markQuestion(Q, q.values);
+  let res = skip ? { correct: false, perField: q.values.map(() => false) } : markQuestion(Q, q.values);
+  // Built on her own earlier answer? Accept what is right for it, and flag it.
+  let followed = null;
+  if (!skip && !res.correct && Q.after && Q.follow) {
+    const prev = r.items.find(i => i.qid === Q.after && !i.skipped && !i.correct);
+    const prevQ = prev && D.banks.find(b => b.id === r.bankId).questions.find(x => x.id === Q.after);
+    if (prev && followMatches(Q.follow, prev.answer, q.values)) {
+      followed = { fromId: Q.after, fromNum: String(Q.after).split('-').pop(), her: prevQ.fields.map((f, k) => (f.prefix || '') + (prev.answer[k] || '') + (f.suffix ? ' ' + f.suffix : '')).join(', ').trim(), book: answerText(prevQ) };
+      res = { correct: true, perField: q.values.map(() => true) };
+    }
+  }
   const item = {
     qid: Q.id, ref: Q.ref || '', topic: Q.topic, text: Q.text, correct: res.correct, skipped: !!skip,
     readMs: Math.max(0, Math.round(readMs)), workMs: Math.max(0, Math.round(workMs)), totalMs: Math.max(0, Math.round(total)),
     hints: q.hintsShown, edits: q.edits, answer: q.values.slice(), expected: answerText(Q),
   };
+  if (followed) item.followed = followed;
   r.items.push(item);
   if (res.correct) { r.streak++; r.best = Math.max(r.best, r.streak); } else r.streak = 0;
-  if (r.mode === 'practice') { q.feedback = { res, praise: res.correct ? pick(PRAISE) : pick(SOFT) }; render(); }
+  if (r.mode === 'practice') { q.feedback = { res, praise: res.correct ? pick(PRAISE) : pick(SOFT), followed }; render(); }
   else advance();
 }
 
@@ -338,7 +350,7 @@ function screenQuestion() {
     ${contextNote(Q) ? `<p class="context">${esc(contextNote(Q))}</p>` : ''}
     ${Q.image ? `<img class="qimg" alt="${esc(Q.imageAlt || '')}" src="${esc(Q.image)}">` : ''}
     <div class="answer">${Q.fields.map((_, i) => fieldHTML(Q, q, i)).join('')}</div>
-    ${fb ? `<div class="feedback ${fb.res.correct ? 'good' : 'oops'}"><strong>${esc(fb.praise)}</strong>${fb.res.correct ? '' : `<div>The answer is <b>${esc(answerText(Q))}</b></div>`}</div>` : ''}
+    ${fb ? `<div class="feedback ${fb.res.correct ? 'good' : 'oops'}"><strong>${esc(fb.praise)}</strong>${fb.res.correct ? '' : `<div>The answer is <b>${esc(answerText(Q))}</b></div>`}${fb.followed ? `<div>That is right for your answer to question ${esc(fb.followed.fromNum)} (${esc(fb.followed.her)}), but that one should be ${esc(fb.followed.book)}. Check it again.</div>` : ''}</div>` : ''}
     ${q.hintsShown ? `<div class="hints">${hints.slice(0, q.hintsShown).map((h, i) => `<div class="hint"><b>Hint ${i + 1}</b> ${esc(h)}</div>`).join('')}</div>` : ''}
     ${fb ? '' : padHTML(Q, q)}
   </main>
@@ -354,6 +366,7 @@ function screenResults() {
   const r = S.run; const s = summarise(r.items); const p = profile();
   const tips = childTips(s, r.prevSummary);
   const wrong = r.items.filter(i => !i.correct);
+  const carried = r.items.filter(i => i.followed);
   const st = stars(s.accuracy);
   return `<header class="top"><h1>${r.mode === 'test' ? 'Test finished' : 'Nice work'}, ${esc(p.name)}!</h1></header>
   <main class="card narrow center">
@@ -362,6 +375,7 @@ function screenResults() {
     ${r.best >= 3 ? `<p>🔥 Best streak: ${r.best} in a row</p>` : ''}
     <p class="muted">Pace: about ${fmtSec(s.avgTotalMs)} a question</p>
     ${tips.length ? `<ul class="tips">${tips.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+    ${carried.length ? `<div class="carried"><b>Marked using your earlier answer</b>${carried.map(c => `<div>${c.ref ? esc(c.ref.split(' · ').slice(2).join(' · ')) + ': ' : ''}right for your answer to question ${esc(c.followed.fromNum)} (${esc(c.followed.her)}). Question ${esc(c.followed.fromNum)} should have been <b>${esc(c.followed.book)}</b>, so have another look at it.</div>`).join('')}</div>` : ''}
     ${wrong.length ? `<details><summary>Look again at ${wrong.length} question${wrong.length > 1 ? 's' : ''}</summary>${wrong.map(w => `<div class="again">${w.ref ? `<div class="muted">${esc(w.ref)}</div>` : ''}<div>${esc(w.text)}</div><div class="muted">Answer: <b>${esc(w.expected)}</b></div></div>`).join('')}</details>` : ''}
     <button class="btn primary big" data-a="start" data-mode="${r.mode}">Go again</button>
     <button class="btn big" data-a="home">Back to start</button>
@@ -438,7 +452,7 @@ function parentResults() {
     const x = summarise(s.items);
     const open = S.parent.openSession === s.id;
     return `<div class="sess"><button class="sesshead" data-a="openSession" data-id="${s.id}"><span>${new Date(s.startedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${s.mode}</span><span>${x.correct}/${x.n} · ${fmtSec(x.avgTotalMs)} each</span></button>
-    ${open ? `<div class="scroll"><table><thead><tr><th>Question</th><th></th><th>Read</th><th>Work</th><th>Hints</th><th>Edits</th></tr></thead><tbody>${s.items.map(i => `<tr><td>${esc(i.text.slice(0, 48))}${i.text.length > 48 ? '…' : ''}${i.ref ? `<div class="muted">${esc(i.ref)}</div>` : ''}</td><td>${i.correct ? '✓' : (i.skipped ? '–' : '✗')}</td><td>${fmtSec(i.readMs)}</td><td>${fmtSec(i.workMs)}</td><td>${i.hints}</td><td>${i.edits}</td></tr>`).join('')}</tbody></table></div>` : ''}</div>`;
+    ${open ? `<div class="scroll"><table><thead><tr><th>Question</th><th></th><th>Read</th><th>Work</th><th>Hints</th><th>Edits</th></tr></thead><tbody>${s.items.map(i => `<tr><td>${esc(i.text.slice(0, 48))}${i.text.length > 48 ? '…' : ''}${i.ref ? `<div class="muted">${esc(i.ref)}</div>` : ''}${i.followed ? `<div class="muted">* marked right for her answer to question ${esc(i.followed.fromNum)} (${esc(i.followed.her)}; the book answer is ${esc(i.followed.book)})</div>` : ''}</td><td>${i.correct ? '✓' : (i.skipped ? '–' : '✗')}${i.followed ? '*' : ''}</td><td>${fmtSec(i.readMs)}</td><td>${fmtSec(i.workMs)}</td><td>${i.hints}</td><td>${i.edits}</td></tr>`).join('')}</tbody></table></div>` : ''}</div>`;
   }).join('')}`;
 }
 

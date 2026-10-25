@@ -85,6 +85,7 @@ export function toRuntime(q) {
   if (ref) out.ref = ref;
   if (q.after) out.after = q.after;
   if (q.context) out.context = q.context;
+  if (q.follow) out.follow = q.follow;
   out.subject = subjectOf(q);
   if (q.image) { out.image = q.image; out.imageAlt = q.imageAlt || ''; }
 

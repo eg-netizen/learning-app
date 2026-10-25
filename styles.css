@@ -143,3 +143,6 @@ table { font-size: .8rem; }
 .resume small { display: block; color: var(--muted); margin: .2rem 0 .6rem; }
 
 .context { margin: -.4rem 0 .8rem; padding: .5rem .75rem; border-left: 4px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, #fff); border-radius: 6px; font-weight: 600; }
+
+.carried { text-align: left; background: #fff7e0; border-left: 4px solid #d9a21b; border-radius: 6px; padding: .6rem .8rem; margin: .8rem 0; }
+.carried div { margin-top: .4rem; }
