@@ -88,3 +88,32 @@ test('a question image and its description carry through to the runtime question
   assert.equal(r.image.startsWith('data:image/svg+xml'), true);
   assert.equal(r.imageAlt, 'A bar chart');
 });
+
+import { pickRandom } from '../src/bank.js';
+
+test('random mix draws a follow-on question straight after the one it builds on', () => {
+  const all = [];
+  for (let i = 1; i <= 20; i++) all.push(toRuntime({ id: 'Q' + i, text: 'q' + i, answer: '1' }));
+  all.push(toRuntime({ id: 'P1', text: 'first', answer: '5' }));
+  all.push(toRuntime({ id: 'P2', text: 'second', answer: '5', after: 'P1' }));
+  const keep = (xs) => xs; // no shuffle: stable order for the test
+  const rev = (xs) => xs.slice().reverse();
+  for (const fn of [keep, rev]) {
+    const out = pickRandom(all, 22, all, fn); // everything fits
+    const i = out.findIndex(q => q.id === 'P2');
+    assert.ok(i > 0 && out[i - 1].id === 'P1', 'P1 must come immediately before P2');
+    assert.equal(new Set(out.map(q => q.id)).size, out.length, 'no duplicates');
+    assert.equal(out.length, 22);
+    const tight = pickRandom(all, 21, all, fn); // a pair that does not fit is left out, never split
+    assert.ok(tight.length <= 21);
+    const k = tight.findIndex(q => q.id === 'P2');
+    if (k >= 0) assert.equal(tight[k - 1].id, 'P1');
+  }
+  // a small draw never splits the pair or exceeds the count
+  for (let n = 0; n < 30; n++) {
+    const out = pickRandom(all, 5, all, (xs) => xs.slice().sort(() => Math.random() - 0.5));
+    assert.ok(out.length <= 5);
+    const j = out.findIndex(q => q.id === 'P2');
+    if (j >= 0) assert.equal(out[j - 1].id, 'P1');
+  }
+});

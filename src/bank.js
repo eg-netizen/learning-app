@@ -83,6 +83,8 @@ export function toRuntime(q) {
   const out = { id: q.id, text: String(q.text).replace(/ {2,}/g, '\n'), topic: q.topic || 'general', hints: q.hints || [], book: q.book, page: q.page, test: q.test, section: q.section, number: q.number };
   const ref = refOf(q);
   if (ref) out.ref = ref;
+  if (q.after) out.after = q.after;
+  if (q.context) out.context = q.context;
   out.subject = subjectOf(q);
   if (q.image) { out.image = q.image; out.imageAlt = q.imageAlt || ''; }
 
@@ -202,4 +204,27 @@ export function validateBank(raw) {
   }
   if (!questions.length) throw new Error('No usable questions were found in this file.');
   return { questions, skipped };
+}
+
+// Random mix. A question that builds on an earlier one (`after`) is always drawn together with it,
+// the earlier one first, as two separate questions. `all` is every question in the bank (to find the earlier one).
+export function pickRandom(pool, count, all, shuffleFn) {
+  const byId = new Map(all.map(q => [q.id, q]));
+  const poolIds = new Set(pool.map(q => q.id));
+  const dependents = pool.filter(q => q.after && byId.has(q.after));
+  const depOf = new Map(dependents.map(q => [q.after, q]));
+  const units = [];
+  for (const q of pool) {
+    if (q.after && byId.has(q.after)) units.push([byId.get(q.after), q]);
+    else if (depOf.has(q.id)) continue; // leads a pair, added with its dependent
+    else units.push([q]);
+  }
+  const out = [];
+  const used = new Set();
+  for (const u of shuffleFn(units)) {
+    if (out.length >= count) break;
+    if (out.length + u.length > count && out.length > 0 && u.length > 1) continue;
+    for (const q of u) if (!used.has(q.id)) { out.push(q); used.add(q.id); }
+  }
+  return out;
 }

@@ -141,3 +141,5 @@ table { font-size: .8rem; }
 /* saved session */
 .resume { border: 2px solid var(--accent); border-radius: 14px; padding: .8rem; margin: .5rem 0 1rem; background: color-mix(in srgb, var(--accent) 8%, #fff); }
 .resume small { display: block; color: var(--muted); margin: .2rem 0 .6rem; }
+
+.context { margin: -.4rem 0 .8rem; padding: .5rem .75rem; border-left: 4px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, #fff); border-radius: 6px; font-weight: 600; }

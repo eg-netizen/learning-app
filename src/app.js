@@ -1,4 +1,4 @@
-import { validateBank, subjectsIn, subjectOf, setsIn, setQuestions } from './bank.js';
+import { validateBank, subjectsIn, subjectOf, setsIn, setQuestions, pickRandom } from './bank.js';
 import { markQuestion, answerText } from './marking.js';
 import { summarise, diagnose, childTips, fmtSec, pct, stars } from './report.js';
 import { load, save, uid, hashPin, shuffle, COLORS } from './store.js';
@@ -63,7 +63,7 @@ function startRun(mode) {
     qs = setQuestions(bank.questions, set.key, sec);
     label = bank.name + ' · ' + set.bookTitle + ' · ' + set.title + (sec ? ' · Section ' + sec : '');
   } else {
-    qs = shuffle(pool).slice(0, Math.min(S.cfg.count, pool.length));
+    qs = pickRandom(pool, Math.min(S.cfg.count, pool.length), bank.questions, shuffle);
   }
   S.run = { mode, bankId: bank.id, bankName: label, setKey: set ? set.key : '', qs, idx: 0, items: [], streak: 0, best: 0, startedAt: Date.now(), q: null, session: null };
   beginQuestion();
@@ -303,6 +303,17 @@ function padHTML(Q, q) {
   return `<div class="pad">${[7, 8, 9].map(n => key(n, n)).join('')}${key('back', '⌫', 'fn')}${[4, 5, 6].map(n => key(n, n)).join('')}${key('/', '/')}${[1, 2, 3].map(n => key(n, n)).join('')}${key('.', '.')}${key(0, 0, 'span2')}${many ? key('next', 'Next box ▶', 'fn span2') : key('clear', 'Clear', 'fn span2')}</div>`;
 }
 
+// A reminder for a question that builds on an earlier one.
+function contextNote(Q) {
+  if (Q.context) return Q.context;
+  if (!Q.after) return '';
+  const bank = D.banks.find(b => b.id === S.run.bankId);
+  const prev = bank && bank.questions.find(x => x.id === Q.after);
+  if (!prev) return '';
+  const ans = answerText(prev);
+  return 'The answer to question ' + String(prev.id).split('-').pop() + ' was ' + ans + (ans.endsWith('.') ? '' : '.');
+}
+
 function screenQuestion() {
   const r = S.run; const q = r.q; const Q = r.qs[r.idx]; const p = profile();
   const fb = q.feedback;
@@ -320,6 +331,7 @@ function screenQuestion() {
   <main class="qbody">
     ${Q.ref ? `<p class="ref">${esc(Q.ref)}</p>` : ''}
     <p class="qtext">${esc(Q.text)}</p>
+    ${contextNote(Q) ? `<p class="context">${esc(contextNote(Q))}</p>` : ''}
     ${Q.image ? `<img class="qimg" alt="${esc(Q.imageAlt || '')}" src="${esc(Q.image)}">` : ''}
     <div class="answer">${Q.fields.map((_, i) => fieldHTML(Q, q, i)).join('')}</div>
     ${fb ? `<div class="feedback ${fb.res.correct ? 'good' : 'oops'}"><strong>${esc(fb.praise)}</strong>${fb.res.correct ? '' : `<div>The answer is <b>${esc(answerText(Q))}</b></div>`}</div>` : ''}
