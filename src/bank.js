@@ -20,12 +20,30 @@ function unitSuffix(unit, answerIsMoney) {
   return { suffix: unit };
 }
 
+const BOOK_SUBJECTS = { MA3: 'Mental Arithmetic', PS3: 'Problem Solving' };
+
+// The subject a child can choose to practise. Pipeline banks may set `subject`; otherwise it comes from the book code.
+export function subjectOf(q) {
+  return q.subject || BOOK_SUBJECTS[q.book] || q.book || '';
+}
+
+// Distinct subjects in a bank with question counts, in first-seen order.
+export function subjectsIn(questions) {
+  const m = new Map();
+  for (const q of questions) {
+    const s = subjectOf(q);
+    if (s) m.set(s, (m.get(s) || 0) + 1);
+  }
+  return [...m].map(([name, n]) => ({ name, n }));
+}
+
 export function toRuntime(q) {
   if (q.fields) return q; // already in runtime form
   const type = q.type || 'numeric';
   const unit = q.unit || '';
   const ans = String(q.answer).trim();
   const out = { id: q.id, text: String(q.text).replace(/ {2,}/g, '\n'), topic: q.topic || 'general', hints: q.hints || [], book: q.book, page: q.page };
+  out.subject = subjectOf(q);
   if (q.image) out.image = q.image;
 
   // Dates with a flexible marking rule

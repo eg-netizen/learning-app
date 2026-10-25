@@ -119,3 +119,9 @@ table { font-size: .8rem; }
 .chk { display: flex; align-items: center; gap: .5rem; font-size: .9rem; width: 100%; }
 .chk input { width: 22px; height: 22px; }
 @media (max-width: 380px) { .cards { grid-template-columns: repeat(2, 1fr); } .qtext { font-size: 1.2rem; } }
+
+/* subject chooser */
+.subjects { display: flex; flex-wrap: wrap; gap: .5rem; margin: .25rem 0 .75rem; }
+.chip { border: 2px solid var(--line); background: #fff; border-radius: 999px; padding: .6rem 1rem; font-size: 1rem; font-weight: 600; cursor: pointer; min-height: 44px; }
+.chip small { opacity: .6; font-weight: 500; margin-left: .25rem; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }

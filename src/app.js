@@ -1,4 +1,4 @@
-import { validateBank } from './bank.js';
+import { validateBank, subjectsIn, subjectOf } from './bank.js';
 import { markQuestion, answerText } from './marking.js';
 import { summarise, diagnose, childTips, fmtSec, pct, stars } from './report.js';
 import { load, save, uid, hashPin, shuffle, COLORS } from './store.js';
@@ -9,7 +9,7 @@ const S = {
   screen: 'profiles',
   profileId: null,
   run: null,
-  cfg: { count: 10, bankId: null },
+  cfg: { count: 10, bankId: null, subject: '' },
   parent: { ok: false, tab: 'results', profileId: null, openSession: null },
   notice: '',
   error: '',
@@ -48,8 +48,11 @@ function timerVisible() {
 function startRun(mode) {
   const bank = D.banks.find(b => b.id === S.cfg.bankId) || D.banks[0];
   if (!bank) { S.error = 'There are no questions yet. Ask a parent to add a question bank.'; render(); return; }
-  const count = Math.min(S.cfg.count, bank.questions.length);
-  S.run = { mode, bankId: bank.id, bankName: bank.name, qs: shuffle(bank.questions).slice(0, count), idx: 0, items: [], streak: 0, best: 0, startedAt: Date.now(), q: null, session: null };
+  const subjects = subjectsIn(bank.questions).map(x => x.name);
+  const subject = subjects.includes(S.cfg.subject) ? S.cfg.subject : '';
+  const pool = subject ? bank.questions.filter(q => subjectOf(q) === subject) : bank.questions;
+  const count = Math.min(S.cfg.count, pool.length);
+  S.run = { mode, bankId: bank.id, bankName: bank.name + (subject ? ' · ' + subject : ''), qs: shuffle(pool).slice(0, count), idx: 0, items: [], streak: 0, best: 0, startedAt: Date.now(), q: null, session: null };
   beginQuestion();
   S.screen = 'question';
   S.error = '';
@@ -182,10 +185,17 @@ function screenHome() {
   const lastSum = last ? summarise(last.items) : null;
   const bank = D.banks.find(b => b.id === S.cfg.bankId) || D.banks[0];
   if (bank) S.cfg.bankId = bank.id;
+  const subjects = bank ? subjectsIn(bank.questions) : [];
+  if (!subjects.some(x => x.name === S.cfg.subject)) S.cfg.subject = '';
+  const subjectPicker = subjects.length > 1 ? `<div class="subjects" role="group" aria-label="Subject">
+      <button class="chip ${S.cfg.subject === '' ? 'on' : ''}" data-a="subject" data-s="">Mixed <small>${bank.questions.length}</small></button>
+      ${subjects.map(x => `<button class="chip ${S.cfg.subject === x.name ? 'on' : ''}" data-a="subject" data-s="${esc(x.name)}">${esc(x.name)} <small>${x.n}</small></button>`).join('')}
+    </div>` : '';
   return `<header class="top"><button class="link" data-a="switchPlayer">‹ Players</button><h1>Hi ${esc(p.name)}!</h1><span class="stars">⭐ ${totalStars}</span></header>
   <main class="card narrow">
     ${lastSum ? `<p class="muted">Last time: ${lastSum.correct} out of ${lastSum.n} (${last.mode === 'test' ? 'test' : 'practice'})</p>` : '<p class="muted">Pick a mode to begin.</p>'}
     ${D.banks.length > 1 ? `<label>Questions from <select data-change="bank">${D.banks.map(b => `<option value="${b.id}" ${b.id === S.cfg.bankId ? 'selected' : ''}>${esc(b.name)} (${b.questions.length})</option>`).join('')}</select></label>` : ''}
+    ${subjectPicker}
     <label>How many questions <select data-change="count">${[5, 10, 15, 20].map(n => `<option ${n === S.cfg.count ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     ${S.error ? `<p class="err">${esc(S.error)}</p>` : ''}
     <button class="btn primary big" data-a="start" data-mode="practice">Practice <small>hints and instant feedback</small></button>
@@ -390,6 +400,7 @@ const actions = {
   chooseProfile(el) { S.profileId = el.dataset.id; D.lastProfileId = S.profileId; persist(); S.screen = 'home'; S.error = ''; render(); },
   switchPlayer() { S.profileId = null; S.screen = 'profiles'; render(); },
   start(el) { startRun(el.dataset.mode); },
+  subject(el) { S.cfg.subject = el.dataset.s; render(); },
   focus(el) { const q = S.run.q; if (q.feedback) return; touch(); q.active = Number(el.dataset.i); render(); },
   key(el) { pressKey(el.dataset.k); },
   pickval(el) { pickValue(el.dataset.v); },

@@ -42,3 +42,21 @@ test('a file that is not a question bank is rejected', () => {
   assert.throws(() => validateBank({ hello: 'world' }));
   assert.throws(() => validateBank([]));
 });
+
+import { subjectOf, subjectsIn } from '../src/bank.js';
+
+test('subject comes from the question, else the book code', () => {
+  assert.equal(subjectOf({ subject: 'Verbal Reasoning', book: 'MA3' }), 'Verbal Reasoning');
+  assert.equal(subjectOf({ book: 'MA3' }), 'Mental Arithmetic');
+  assert.equal(subjectOf({ book: 'PS3' }), 'Problem Solving');
+  assert.equal(subjectOf({}), '');
+});
+
+test('subjectsIn counts each subject and ignores untagged questions', () => {
+  const qs = [{ book: 'MA3' }, { book: 'MA3' }, { book: 'PS3' }, {}];
+  assert.deepEqual(subjectsIn(qs), [{ name: 'Mental Arithmetic', n: 2 }, { name: 'Problem Solving', n: 1 }]);
+});
+
+test('toRuntime keeps the subject', () => {
+  assert.equal(toRuntime({ id: 'x', text: '1+1=', answer: '2', book: 'PS3' }).subject, 'Problem Solving');
+});
