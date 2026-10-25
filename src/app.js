@@ -355,6 +355,18 @@ function screenResults() {
 /* ---------------------------------------------------------------- parent area */
 
 function screenPin() {
+  if (S.pinReset && D.pinHash) {
+    return `${header('Forgot the PIN?')}
+  <main class="card narrow">
+    <p>You can choose a new PIN. Your players, results and questions are all kept.</p>
+    <form data-form="pinReset">
+      <label>Type the word RESET to continue <input name="word" autocomplete="off" autocapitalize="characters" required></label>
+      ${S.error ? `<p class="err">${esc(S.error)}</p>` : ''}
+      <button class="btn primary big" type="submit">Choose a new PIN</button>
+    </form>
+    <button class="link" data-a="cancelPinReset">‹ Back</button>
+  </main>`;
+  }
   const create = !D.pinHash;
   return `${header(create ? 'Create a parent PIN' : 'Parent area')}
   <main class="card narrow">
@@ -365,6 +377,7 @@ function screenPin() {
       ${S.error ? `<p class="err">${esc(S.error)}</p>` : ''}
       <button class="btn primary big" type="submit">${create ? 'Save PIN' : 'Open'}</button>
     </form>
+    ${create ? '' : '<button class="link" data-a="forgotPin">Forgot the PIN?</button>'}
     <button class="link" data-a="leaveParent">‹ Back</button>
   </main>`;
 }
@@ -493,11 +506,13 @@ const actions = {
     S.run = null; S.screen = 'home'; render();
   },
   resume() { resumeRun(); },
+  forgotPin() { S.pinReset = true; S.error = ''; render(); },
+  cancelPinReset() { S.pinReset = false; S.error = ''; render(); },
   discardPaused() { if (confirm('Throw away the saved session?')) { clearProgress(S.profileId); render(); } },
   home() { S.run = null; S.screen = 'home'; render(); },
   toggleTimer() { const p = profile(); p.showTimer = !p.showTimer; persist(); render(); },
   openParent() { S.error = ''; S.notice = ''; S.screen = S.parent.ok ? 'parent' : 'pin'; render(); },
-  leaveParent() { S.parent.ok = false; S.error = ''; S.notice = ''; S.screen = S.profileId ? 'home' : 'profiles'; render(); },
+  leaveParent() { S.pinReset = false; S.parent.ok = false; S.error = ''; S.notice = ''; S.screen = S.profileId ? 'home' : 'profiles'; render(); },
   tab(el) { S.parent.tab = el.dataset.tab; S.notice = ''; S.error = ''; render(); },
   openSession(el) { S.parent.openSession = S.parent.openSession === el.dataset.id ? null : el.dataset.id; render(); },
   deleteProfile(el) {
@@ -552,6 +567,9 @@ root.addEventListener('submit', async (e) => {
     persist(); S.error = '';
     S.addingPlayer = false;
     render();
+  } else if (kind === 'pinReset') {
+    if (String(fd.get('word') || '').trim().toUpperCase() !== 'RESET') { S.error = 'Please type the word RESET.'; render(); return; }
+    D.pinHash = null; persist(); S.pinReset = false; S.error = ''; render();
   } else if (kind === 'pin') {
     const pin = String(fd.get('pin') || '');
     if (!/^\d{4}$/.test(pin)) { S.error = 'The PIN must be exactly 4 digits.'; render(); return; }
