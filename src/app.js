@@ -1,4 +1,4 @@
-import { validateBank, subjectsIn, subjectOf } from './bank.js';
+import { validateBank, subjectsIn, subjectOf, setsIn, setQuestions } from './bank.js';
 import { markQuestion, answerText } from './marking.js';
 import { summarise, diagnose, childTips, fmtSec, pct, stars } from './report.js';
 import { load, save, uid, hashPin, shuffle, COLORS } from './store.js';
@@ -9,7 +9,7 @@ const S = {
   screen: 'profiles',
   profileId: null,
   run: null,
-  cfg: { count: 10, bankId: null, subject: '' },
+  cfg: { count: 10, bankId: null, subject: '', setKey: '', sec: '' },
   parent: { ok: false, tab: 'results', profileId: null, openSession: null },
   notice: '',
   error: '',
@@ -21,6 +21,8 @@ const SOFT = ['Not quite.', 'Close, keep going.', 'Good try.', 'Nearly there.'];
 const esc = (s) => String(s === undefined || s === null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
+// The chosen bank, else the most recently imported one, else the built-in sample.
+const currentBank = () => D.banks.find(b => b.id === S.cfg.bankId) || [...D.banks].reverse().find(b => !b.builtIn) || D.banks[0];
 const profile = () => D.profiles.find(p => p.id === S.profileId);
 const persist = () => { if (!save(D)) S.error = 'Could not save: this browser is out of storage space.'; };
 
@@ -46,13 +48,22 @@ function timerVisible() {
 }
 
 function startRun(mode) {
-  const bank = D.banks.find(b => b.id === S.cfg.bankId) || D.banks[0];
+  const bank = currentBank();
   if (!bank) { S.error = 'There are no questions yet. Ask a parent to add a question bank.'; render(); return; }
   const subjects = subjectsIn(bank.questions).map(x => x.name);
   const subject = subjects.includes(S.cfg.subject) ? S.cfg.subject : '';
-  const pool = subject ? bank.questions.filter(q => subjectOf(q) === subject) : bank.questions;
-  const count = Math.min(S.cfg.count, pool.length);
-  S.run = { mode, bankId: bank.id, bankName: bank.name + (subject ? ' · ' + subject : ''), qs: shuffle(pool).slice(0, count), idx: 0, items: [], streak: 0, best: 0, startedAt: Date.now(), q: null, session: null };
+  const set = S.cfg.setKey ? setsIn(bank.questions).find(x => x.key === S.cfg.setKey) : null;
+  let pool = subject ? bank.questions.filter(q => subjectOf(q) === subject) : bank.questions;
+  let qs; let label = bank.name + (subject ? ' · ' + subject : '');
+  if (set) {
+    // Booklet order: the whole set, or one section of it, exactly as printed.
+    const sec = set.sections.some(x => x.name === S.cfg.sec) ? S.cfg.sec : '';
+    qs = setQuestions(bank.questions, set.key, sec);
+    label = bank.name + ' · ' + set.bookTitle + ' · ' + set.title + (sec ? ' · Section ' + sec : '');
+  } else {
+    qs = shuffle(pool).slice(0, Math.min(S.cfg.count, pool.length));
+  }
+  S.run = { mode, bankId: bank.id, bankName: label, setKey: set ? set.key : '', qs, idx: 0, items: [], streak: 0, best: 0, startedAt: Date.now(), q: null, session: null };
   beginQuestion();
   S.screen = 'question';
   S.error = '';
@@ -108,7 +119,7 @@ function submit(skip) {
   else { readMs = q.firstAt - q.shownAt - q.pausedAtFirst; workMs = t - q.firstAt - (q.paused - q.pausedAtFirst); }
   const res = skip ? { correct: false, perField: q.values.map(() => false) } : markQuestion(Q, q.values);
   const item = {
-    qid: Q.id, topic: Q.topic, text: Q.text, correct: res.correct, skipped: !!skip,
+    qid: Q.id, ref: Q.ref || '', topic: Q.topic, text: Q.text, correct: res.correct, skipped: !!skip,
     readMs: Math.max(0, Math.round(readMs)), workMs: Math.max(0, Math.round(workMs)), totalMs: Math.max(0, Math.round(total)),
     hints: q.hintsShown, edits: q.edits, answer: q.values.slice(), expected: answerText(Q),
   };
@@ -129,7 +140,7 @@ function finishRun() {
   const r = S.run;
   const prior = D.sessions.filter(s => s.profileId === S.profileId && s.mode === r.mode).slice(-1)[0];
   const session = {
-    id: uid(), profileId: S.profileId, mode: r.mode, bankId: r.bankId, bankName: r.bankName,
+    id: uid(), profileId: S.profileId, mode: r.mode, bankId: r.bankId, bankName: r.bankName, setKey: r.setKey || '',
     startedAt: r.startedAt, endedAt: Date.now(), items: r.items,
   };
   D.sessions.push(session);
@@ -191,10 +202,20 @@ function screenHome() {
   const totalStars = mine.reduce((a, s) => a + stars(summarise(s.items).accuracy), 0);
   const last = mine.slice(-1)[0];
   const lastSum = last ? summarise(last.items) : null;
-  const bank = D.banks.find(b => b.id === S.cfg.bankId) || D.banks[0];
+  const bank = currentBank();
   if (bank) S.cfg.bankId = bank.id;
   const subjects = bank ? subjectsIn(bank.questions) : [];
+  const allSets = bank ? setsIn(bank.questions) : [];
   if (!subjects.some(x => x.name === S.cfg.subject)) S.cfg.subject = '';
+  const sets = allSets.filter(x => !S.cfg.subject || x.subject === S.cfg.subject);
+  if (!sets.some(x => x.key === S.cfg.setKey)) { S.cfg.setKey = ''; S.cfg.sec = ''; }
+  const lastFor = (set) => mine.filter(s => s.setKey === set.key && s.bankId === bank.id && s.items.length === set.n).slice(-1)[0];
+  const setPicker = sets.length ? `<div class="sets"><h3>What to practise</h3>
+      <button class="setbtn ${S.cfg.setKey === '' ? 'on' : ''}" data-a="pickSet" data-key="" data-sec=""><b>🎲 Random mix</b><small>questions picked from the bank</small></button>
+      ${sets.map(x => { const on = S.cfg.setKey === x.key; const l = lastFor(x); const ls = l ? summarise(l.items) : null;
+        return `<button class="setbtn ${on && !S.cfg.sec ? 'on' : ''}" data-a="pickSet" data-key="${esc(x.key)}" data-sec=""><b>📖 ${esc(x.bookTitle)} · ${esc(x.title)}</b><small>${x.n} questions in booklet order${x.page ? ' · page ' + x.page : ''}${ls ? ' · last ' + ls.correct + '/' + ls.n : ''}</small></button>
+        ${on && x.sections.length > 1 ? `<div class="secrow">Just one section: ${x.sections.map(sc => `<button class="chip ${S.cfg.sec === sc.name ? 'on' : ''}" data-a="pickSet" data-key="${esc(x.key)}" data-sec="${esc(sc.name)}">${esc(sc.name)} <small>${sc.n}</small></button>`).join('')}</div>` : ''}`; }).join('')}
+    </div>` : '';
   const subjectPicker = subjects.length > 1 ? `<div class="subjects" role="group" aria-label="Subject">
       <button class="chip ${S.cfg.subject === '' ? 'on' : ''}" data-a="subject" data-s="">Mixed <small>${bank.questions.length}</small></button>
       ${subjects.map(x => `<button class="chip ${S.cfg.subject === x.name ? 'on' : ''}" data-a="subject" data-s="${esc(x.name)}">${esc(x.name)} <small>${x.n}</small></button>`).join('')}
@@ -204,7 +225,8 @@ function screenHome() {
     ${lastSum ? `<p class="muted">Last time: ${lastSum.correct} out of ${lastSum.n} (${last.mode === 'test' ? 'test' : 'practice'})</p>` : '<p class="muted">Pick a mode to begin.</p>'}
     ${D.banks.length > 1 ? `<label>Questions from <select data-change="bank">${D.banks.map(b => `<option value="${b.id}" ${b.id === S.cfg.bankId ? 'selected' : ''}>${esc(b.name)} (${b.questions.length})</option>`).join('')}</select></label>` : ''}
     ${subjectPicker}
-    <label>How many questions <select data-change="count">${[5, 10, 15, 20].map(n => `<option ${n === S.cfg.count ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+    ${setPicker}
+    ${S.cfg.setKey ? '' : `<label>How many questions <select data-change="count">${[5, 10, 15, 20].map(n => `<option ${n === S.cfg.count ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`}
     ${S.error ? `<p class="err">${esc(S.error)}</p>` : ''}
     <button class="btn primary big" data-a="start" data-mode="practice">Practice <small>hints and instant feedback</small></button>
     <button class="btn big" data-a="start" data-mode="test">Test <small>timed, no hints, results at the end</small></button>
@@ -258,6 +280,7 @@ function screenQuestion() {
       ${showClock ? `<span class="timer" id="timer">0.0s</span>` : ''}</div>
   </header>
   <main class="qbody">
+    ${Q.ref ? `<p class="ref">${esc(Q.ref)}</p>` : ''}
     <p class="qtext">${esc(Q.text)}</p>
     ${Q.image ? `<img class="qimg" alt="" src="${esc(Q.image)}">` : ''}
     <div class="answer">${Q.fields.map((_, i) => fieldHTML(Q, q, i)).join('')}</div>
@@ -285,7 +308,7 @@ function screenResults() {
     ${r.best >= 3 ? `<p>🔥 Best streak: ${r.best} in a row</p>` : ''}
     <p class="muted">Pace: about ${fmtSec(s.avgTotalMs)} a question</p>
     ${tips.length ? `<ul class="tips">${tips.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
-    ${wrong.length ? `<details><summary>Look again at ${wrong.length} question${wrong.length > 1 ? 's' : ''}</summary>${wrong.map(w => `<div class="again"><div>${esc(w.text)}</div><div class="muted">Answer: <b>${esc(w.expected)}</b></div></div>`).join('')}</details>` : ''}
+    ${wrong.length ? `<details><summary>Look again at ${wrong.length} question${wrong.length > 1 ? 's' : ''}</summary>${wrong.map(w => `<div class="again">${w.ref ? `<div class="muted">${esc(w.ref)}</div>` : ''}<div>${esc(w.text)}</div><div class="muted">Answer: <b>${esc(w.expected)}</b></div></div>`).join('')}</details>` : ''}
     <button class="btn primary big" data-a="start" data-mode="${r.mode}">Go again</button>
     <button class="btn big" data-a="home">Back to start</button>
   </main>`;
@@ -348,7 +371,7 @@ function parentResults() {
     const x = summarise(s.items);
     const open = S.parent.openSession === s.id;
     return `<div class="sess"><button class="sesshead" data-a="openSession" data-id="${s.id}"><span>${new Date(s.startedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${s.mode}</span><span>${x.correct}/${x.n} · ${fmtSec(x.avgTotalMs)} each</span></button>
-    ${open ? `<div class="scroll"><table><thead><tr><th>Question</th><th></th><th>Read</th><th>Work</th><th>Hints</th><th>Edits</th></tr></thead><tbody>${s.items.map(i => `<tr><td>${esc(i.text.slice(0, 48))}${i.text.length > 48 ? '…' : ''}</td><td>${i.correct ? '✓' : (i.skipped ? '–' : '✗')}</td><td>${fmtSec(i.readMs)}</td><td>${fmtSec(i.workMs)}</td><td>${i.hints}</td><td>${i.edits}</td></tr>`).join('')}</tbody></table></div>` : ''}</div>`;
+    ${open ? `<div class="scroll"><table><thead><tr><th>Question</th><th></th><th>Read</th><th>Work</th><th>Hints</th><th>Edits</th></tr></thead><tbody>${s.items.map(i => `<tr><td>${esc(i.text.slice(0, 48))}${i.text.length > 48 ? '…' : ''}${i.ref ? `<div class="muted">${esc(i.ref)}</div>` : ''}</td><td>${i.correct ? '✓' : (i.skipped ? '–' : '✗')}</td><td>${fmtSec(i.readMs)}</td><td>${fmtSec(i.workMs)}</td><td>${i.hints}</td><td>${i.edits}</td></tr>`).join('')}</tbody></table></div>` : ''}</div>`;
   }).join('')}`;
 }
 
@@ -410,6 +433,7 @@ const actions = {
   hideAddPlayer() { S.addingPlayer = false; render(); },
   switchPlayer() { S.addingPlayer = false; S.profileId = null; S.screen = 'profiles'; render(); },
   start(el) { startRun(el.dataset.mode); },
+  pickSet(el) { S.cfg.setKey = el.dataset.key; S.cfg.sec = el.dataset.sec || ''; render(); },
   subject(el) { S.cfg.subject = el.dataset.s; render(); },
   focus(el) { const q = S.run.q; if (q.feedback) return; touch(); q.active = Number(el.dataset.i); render(); },
   key(el) { pressKey(el.dataset.k); },

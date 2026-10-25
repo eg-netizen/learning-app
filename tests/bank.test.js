@@ -60,3 +60,25 @@ test('subjectsIn counts each subject and ignores untagged questions', () => {
 test('toRuntime keeps the subject', () => {
   assert.equal(toRuntime({ id: 'x', text: '1+1=', answer: '2', book: 'PS3' }).subject, 'Problem Solving');
 });
+
+import { setsIn, setQuestions, refOf } from '../src/bank.js';
+
+const fx = (id, test, section, number, page) => ({ id, text: 'q ' + id, answer: '1', book: 'MA3', test, section, number, page });
+
+test('sets keep booklet order and can be limited to one section', () => {
+  const raw = [fx('MA3-3-A1', 3, 'A', 1, 6), fx('MA3-3-A2', 3, 'A', 2, 6), fx('MA3-3-B1', 3, 'B', 1, 6), fx('MA3-4-A1', 4, 'A', 1, 7),
+    { id: 'PS3-Time-3a', text: 't', answer: '1', book: 'PS3', test: 'Time', section: '', number: 3, page: 4 }];
+  const qs = validateBank(raw).questions;
+  const sets = setsIn(qs);
+  assert.deepEqual(sets.map(s => [s.title, s.n]), [['Test 3', 3], ['Test 4', 1], ['Time', 1]]);
+  assert.deepEqual(sets[0].sections, [{ name: 'A', n: 2 }, { name: 'B', n: 1 }]);
+  assert.deepEqual(setQuestions(qs, 'MA3|3').map(q => q.id), ['MA3-3-A1', 'MA3-3-A2', 'MA3-3-B1']);
+  assert.deepEqual(setQuestions(qs, 'MA3|3', 'B').map(q => q.id), ['MA3-3-B1']);
+});
+
+test('every question keeps its book, set, question number and page', () => {
+  assert.equal(refOf(fx('MA3-4-B7', 4, 'B', 7, 7)), 'Mental Arithmetic 3 · Test 4 · Section B, question 7 · page 7');
+  assert.equal(refOf({ id: 'PS3-Time-3a', book: 'PS3', test: 'Time', section: '', number: 3, page: 4 }), 'Problem Solving 3 · Time · Question 3a · page 4');
+  assert.equal(refOf({ id: 'S-01' }), '');
+  assert.equal(toRuntime(fx('MA3-5-C2', 5, 'C', 2, 8)).ref, 'Mental Arithmetic 3 · Test 5 · Section C, question 2 · page 8');
+});

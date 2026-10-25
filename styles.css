@@ -129,3 +129,11 @@ table { font-size: .8rem; }
 /* add-player tile */
 .who.add { border-style: dashed; background: transparent; color: var(--muted); }
 .who.add .avatar { background: var(--line); color: var(--ink); }
+
+/* booklet sets */
+.sets h3 { margin: .75rem 0 .4rem; font-size: 1rem; color: var(--muted); }
+.setbtn { display: block; width: 100%; text-align: left; border: 2px solid var(--line); background: #fff; border-radius: 14px; padding: .7rem .9rem; margin-bottom: .5rem; cursor: pointer; min-height: 44px; font: inherit; color: var(--ink); }
+.setbtn small { display: block; color: var(--muted); font-weight: 500; margin-top: .15rem; }
+.setbtn.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, #fff); }
+.secrow { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin: -.2rem 0 .6rem .4rem; color: var(--muted); font-size: .95rem; }
+.ref { margin: 0 0 .4rem; color: var(--muted); font-size: .85rem; }

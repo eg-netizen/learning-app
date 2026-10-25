@@ -37,12 +37,52 @@ export function subjectsIn(questions) {
   return [...m].map(([name, n]) => ({ name, n }));
 }
 
+const BOOK_TITLES = { MA3: 'Mental Arithmetic 3', PS3: 'Problem Solving 3' };
+
+// Booklet position of a question: which set it belongs to and where it sits in the original book.
+// Works on pipeline questions and runtime questions (both carry book, test, section, id, page).
+export function setKeyOf(q) {
+  return q.book && q.test !== undefined && q.test !== null && q.test !== '' ? q.book + '|' + q.test : '';
+}
+
+export function refOf(q) {
+  if (!setKeyOf(q)) return '';
+  const last = String(q.id).split('-').pop();
+  const where = q.section ? 'Section ' + q.section + ', question ' + (q.number ?? last.replace(/^[A-Z]/, '')) : 'Question ' + last;
+  const title = typeof q.test === 'number' || /^\d+$/.test(String(q.test)) ? 'Test ' + q.test : String(q.test);
+  return [BOOK_TITLES[q.book] || q.book, title, where, q.page ? 'page ' + q.page : ''].filter(Boolean).join(' · ');
+}
+
+// The sets in a bank, in the order they first appear (which is booklet order).
+export function setsIn(questions) {
+  const m = new Map();
+  for (const q of questions) {
+    const key = setKeyOf(q);
+    if (!key) continue;
+    if (!m.has(key)) m.set(key, { key, title: /^\d+$/.test(String(q.test)) ? 'Test ' + q.test : String(q.test), bookTitle: BOOK_TITLES[q.book] || q.book, subject: subjectOf(q), page: q.page, n: 0, sections: [] });
+    const s = m.get(key);
+    s.n++;
+    if (q.section) {
+      const sec = s.sections.find(x => x.name === q.section);
+      if (sec) sec.n++; else s.sections.push({ name: q.section, n: 1 });
+    }
+  }
+  return [...m.values()];
+}
+
+// Questions of one set in booklet order, optionally just one section.
+export function setQuestions(questions, key, section) {
+  return questions.filter(q => setKeyOf(q) === key && (!section || q.section === section));
+}
+
 export function toRuntime(q) {
   if (q.fields) return q; // already in runtime form
   const type = q.type || 'numeric';
   const unit = q.unit || '';
   const ans = String(q.answer).trim();
-  const out = { id: q.id, text: String(q.text).replace(/ {2,}/g, '\n'), topic: q.topic || 'general', hints: q.hints || [], book: q.book, page: q.page };
+  const out = { id: q.id, text: String(q.text).replace(/ {2,}/g, '\n'), topic: q.topic || 'general', hints: q.hints || [], book: q.book, page: q.page, test: q.test, section: q.section, number: q.number };
+  const ref = refOf(q);
+  if (ref) out.ref = ref;
   out.subject = subjectOf(q);
   if (q.image) out.image = q.image;
 
