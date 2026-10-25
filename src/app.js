@@ -229,7 +229,6 @@ function screenQuestion() {
   const r = S.run; const q = r.q; const Q = r.qs[r.idx]; const p = profile();
   const fb = q.feedback;
   const hints = Q.hints || [];
-  const canHint = r.mode === 'practice' && hints.length;
   const showClock = timerVisible();
   const progress = Math.round((r.idx / r.qs.length) * 100);
   const hasAny = q.values.some(v => v !== '');
@@ -250,7 +249,7 @@ function screenQuestion() {
   </main>
   <footer class="qfoot">
     ${fb ? `<button class="btn primary big" data-a="next">${r.idx + 1 >= r.qs.length ? 'See results' : 'Next'}</button>` : `
-      ${canHint ? `<button class="btn" data-a="hint" ${q.hintsShown >= hints.length ? 'disabled' : ''}>💡 ${q.hintsShown >= hints.length ? 'No more hints' : 'Hint ' + (q.hintsShown + 1) + ' of ' + hints.length}</button>` : ''}
+      ${r.mode === 'practice' ? `<button class="btn" data-a="hint" ${q.hintsShown >= hints.length ? 'disabled' : ''}>💡 ${!hints.length ? 'No hint for this one' : q.hintsShown >= hints.length ? 'No more hints' : 'Hint ' + (q.hintsShown + 1) + ' of ' + hints.length}</button>` : ''}
       <button class="btn primary" data-a="check" ${hasAny ? '' : 'disabled'}>Check</button>
       ${r.mode === 'test' ? `<button class="link" data-a="skip">Skip</button>` : ''}`}
   </footer>`;
