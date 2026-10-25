@@ -60,7 +60,7 @@ input[type=text], input[type=password], input:not([type]), select { display: blo
 .timer { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 3.4rem; text-align: right; }
 .qbody { padding: .5rem 1rem; flex: 1; }
 .qtext { font-size: 1.35rem; font-weight: 600; margin: .6rem 0 1rem; white-space: pre-line; }
-.qimg { max-width: 100%; border-radius: 10px; margin-bottom: 1rem; }
+.qimg { display: block; max-width: 100%; max-height: 24vh; width: auto; border-radius: 10px; margin: 0 auto .6rem; }
 .answer { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; font-size: 1.3rem; font-weight: 700; }
 .lab { color: var(--muted); margin-left: .5rem; }
 .aff { color: var(--muted); }
@@ -75,7 +75,7 @@ input[type=text], input[type=password], input:not([type]), select { display: blo
 .hint { background: #fff8d9; border-left: 5px solid #f0c419; padding: .6rem .8rem; border-radius: 8px; margin-bottom: .5rem; font-size: .98rem; }
 
 .pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
-.key { min-height: 58px; border: 0; border-radius: 12px; background: #fff; border-bottom: 3px solid var(--line); font-size: 1.4rem; font-weight: 700; }
+.key { min-height: clamp(46px, 7vh, 58px); border: 0; border-radius: 12px; background: #fff; border-bottom: 3px solid var(--line); font-size: 1.4rem; font-weight: 700; }
 .key:active { background: var(--line); }
 .key.fn { background: #eceffa; font-size: 1.05rem; }
 .key.span2 { grid-column: span 2; }

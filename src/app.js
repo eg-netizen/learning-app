@@ -320,7 +320,7 @@ function screenQuestion() {
   <main class="qbody">
     ${Q.ref ? `<p class="ref">${esc(Q.ref)}</p>` : ''}
     <p class="qtext">${esc(Q.text)}</p>
-    ${Q.image ? `<img class="qimg" alt="" src="${esc(Q.image)}">` : ''}
+    ${Q.image ? `<img class="qimg" alt="${esc(Q.imageAlt || '')}" src="${esc(Q.image)}">` : ''}
     <div class="answer">${Q.fields.map((_, i) => fieldHTML(Q, q, i)).join('')}</div>
     ${fb ? `<div class="feedback ${fb.res.correct ? 'good' : 'oops'}"><strong>${esc(fb.praise)}</strong>${fb.res.correct ? '' : `<div>The answer is <b>${esc(answerText(Q))}</b></div>`}</div>` : ''}
     ${q.hintsShown ? `<div class="hints">${hints.slice(0, q.hintsShown).map((h, i) => `<div class="hint"><b>Hint ${i + 1}</b> ${esc(h)}</div>`).join('')}</div>` : ''}

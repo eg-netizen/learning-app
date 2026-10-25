@@ -82,3 +82,9 @@ test('every question keeps its book, set, question number and page', () => {
   assert.equal(refOf({ id: 'S-01' }), '');
   assert.equal(toRuntime(fx('MA3-5-C2', 5, 'C', 2, 8)).ref, 'Mental Arithmetic 3 · Test 5 · Section C, question 2 · page 8');
 });
+
+test('a question image and its description carry through to the runtime question', () => {
+  const r = toRuntime({ id: 'x', text: 'Read the chart.', answer: '4', image: 'data:image/svg+xml;charset=utf-8,%3Csvg%3E', imageAlt: 'A bar chart' });
+  assert.equal(r.image.startsWith('data:image/svg+xml'), true);
+  assert.equal(r.imageAlt, 'A bar chart');
+});

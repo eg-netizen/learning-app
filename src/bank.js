@@ -84,7 +84,7 @@ export function toRuntime(q) {
   const ref = refOf(q);
   if (ref) out.ref = ref;
   out.subject = subjectOf(q);
-  if (q.image) out.image = q.image;
+  if (q.image) { out.image = q.image; out.imageAlt = q.imageAlt || ''; }
 
   // Dates with a flexible marking rule
   if (q.accept && q.accept.type === 'date') {
