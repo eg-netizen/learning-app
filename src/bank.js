@@ -1,0 +1,147 @@
+// Converts a question from the content pipeline format into the runtime format the app plays.
+//
+// Pipeline question: { id, text, type, unit, answer, topic, hints?, options?, accept? }
+// Runtime question:  { id, text, topic, hints, orderFree?, fields: [{ kind, answer, prefix?, suffix?, label?, options?, accept?, bag? }] }
+
+const UNIT_RE = '[A-Za-zµ°%]+';
+
+function numberish(s) {
+  return /^-?[\d.]+(\/\d+)?$/.test(String(s).trim());
+}
+
+function splitValueUnit(v) {
+  const m = String(v).trim().match(new RegExp('^(-?[\\d.]+(?:/\\d+)?)\\s*(' + UNIT_RE + '(?:\\s' + UNIT_RE + ')?)$'));
+  return m ? { value: m[1], unit: m[2] } : { value: String(v).trim(), unit: '' };
+}
+
+function unitSuffix(unit, answerIsMoney) {
+  if (!unit) return {};
+  if (unit === '£') return { prefix: '£' };
+  return { suffix: unit };
+}
+
+export function toRuntime(q) {
+  if (q.fields) return q; // already in runtime form
+  const type = q.type || 'numeric';
+  const unit = q.unit || '';
+  const ans = String(q.answer).trim();
+  const out = { id: q.id, text: String(q.text).replace(/ {2,}/g, '\n'), topic: q.topic || 'general', hints: q.hints || [], book: q.book, page: q.page };
+  if (q.image) out.image = q.image;
+
+  // Dates with a flexible marking rule
+  if (q.accept && q.accept.type === 'date') {
+    out.fields = [{ kind: 'date', answer: ans, accept: q.accept }];
+    return out;
+  }
+
+  if (type === 'time') {
+    out.fields = [{ kind: 'time', answer: ans }];
+    return out;
+  }
+
+  if (type === 'operators') {
+    const pairs = [...ans.matchAll(/([●▲])\s*=\s*([+−\-×x÷/])/g)];
+    if (pairs.length) {
+      out.fields = pairs.map(p => ({ kind: 'op', label: p[1], answer: p[2] === '-' ? '−' : p[2] }));
+      return out;
+    }
+  }
+
+  if (type === 'list') {
+    const items = ans.split(',').map(s => s.trim()).filter(Boolean);
+    out.fields = items.map(a => ({ kind: 'num', answer: a }));
+    out.orderFree = true;
+    return out;
+  }
+
+  if (type === 'remainder') {
+    const m = ans.match(/^(\d+)\s*r\s*(\d+)$/i);
+    if (m) {
+      out.fields = [{ kind: 'num', answer: m[1] }, { kind: 'num', label: 'r', answer: m[2] }];
+      return out;
+    }
+  }
+
+  if (type === 'choice' && q.options && q.options.length) {
+    out.fields = [{ kind: 'choice', answer: ans, options: q.options }];
+    return out;
+  }
+
+  if (type === 'multi' || /^[a-z]\s*=/.test(ans)) {
+    // a=15, b=60   |   a=1900 g, b=2 kg   |   a=Z, b=square
+    if (/^[a-z]\s*=/.test(ans)) {
+      const parts = ans.split(/,\s*(?=[a-z]\s*=)/);
+      out.fields = parts.map(p => {
+        const m = p.match(/^([a-z])\s*=\s*(.+)$/);
+        const raw = m[2].trim();
+        if (numberish(raw) || /^-?[\d.]+(\/\d+)?\s*[A-Za-zµ]/.test(raw)) {
+          const { value, unit: u } = splitValueUnit(raw);
+          return Object.assign({ kind: 'num', label: m[1], answer: value }, unitSuffix(u || unit));
+        }
+        return { kind: 'text', label: m[1], answer: raw };
+      });
+      return out;
+    }
+    // 1 l 710 ml   |   186 cm -> 1 m 86 cm   |   2 hours 30 minutes
+    const m = ans.match(new RegExp('^(\\d+)\\s*(' + UNIT_RE + ')\\s+(\\d+)\\s*(' + UNIT_RE + ')$'));
+    if (m) {
+      out.fields = [
+        { kind: 'num', answer: m[1], suffix: m[2] },
+        { kind: 'num', answer: m[3], suffix: m[4] },
+      ];
+      return out;
+    }
+  }
+
+  // Two-unit answers that are not typed 'multi' (for example "1 m 86 cm")
+  const pair = ans.match(new RegExp('^(\\d+)\\s*(' + UNIT_RE + ')\\s+(\\d+)\\s*(' + UNIT_RE + ')$'));
+  if (pair) {
+    out.fields = [
+      { kind: 'num', answer: pair[1], suffix: pair[2] },
+      { kind: 'num', answer: pair[3], suffix: pair[4] },
+    ];
+    return out;
+  }
+
+  if (type === 'choice') {
+    out.fields = [{ kind: 'text', answer: ans, bag: true }];
+    return out;
+  }
+
+  if (type === 'text') {
+    out.fields = [{ kind: 'text', answer: ans }];
+    return out;
+  }
+
+  // numeric, decimal, money, fraction and anything else with a numeric answer
+  if (numberish(ans)) {
+    out.fields = [Object.assign({ kind: 'num', answer: ans }, unitSuffix(unit))];
+    return out;
+  }
+
+  // Fallback: type the answer as text
+  out.fields = [{ kind: 'text', answer: ans }];
+  return out;
+}
+
+export function validateBank(raw) {
+  const list = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.questions) ? raw.questions : null);
+  if (!list) throw new Error('This file does not look like a question bank (expected a list of questions).');
+  const questions = [];
+  const skipped = [];
+  for (const q of list) {
+    if (!q || !q.text || q.answer === undefined || q.answer === '?' || q.answer === null) {
+      skipped.push(q && q.id ? q.id : '(unknown)');
+      continue;
+    }
+    try {
+      const r = toRuntime(q);
+      if (!r.fields || !r.fields.length) { skipped.push(q.id || '(unknown)'); continue; }
+      questions.push(r);
+    } catch (e) {
+      skipped.push(q.id || '(unknown)');
+    }
+  }
+  if (!questions.length) throw new Error('No usable questions were found in this file.');
+  return { questions, skipped };
+}

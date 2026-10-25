@@ -1,0 +1,274 @@
+[
+ {
+  "id": "S-01",
+  "text": "23 + 59 =",
+  "type": "numeric",
+  "unit": "",
+  "answer": "82",
+  "topic": "addition",
+  "hints": []
+ },
+ {
+  "id": "S-02",
+  "text": "300 - 175 =",
+  "type": "numeric",
+  "unit": "",
+  "answer": "125",
+  "topic": "subtraction",
+  "hints": []
+ },
+ {
+  "id": "S-03",
+  "text": "8 x 7 =",
+  "type": "numeric",
+  "unit": "",
+  "answer": "56",
+  "topic": "multiplication",
+  "hints": []
+ },
+ {
+  "id": "S-04",
+  "text": "96 ÷ 8 =",
+  "type": "numeric",
+  "unit": "",
+  "answer": "12",
+  "topic": "division",
+  "hints": []
+ },
+ {
+  "id": "S-05",
+  "text": "1kg - 400g = __ g",
+  "type": "numeric",
+  "unit": "g",
+  "answer": "600",
+  "topic": "measures",
+  "hints": []
+ },
+ {
+  "id": "S-06",
+  "text": "Find the change from £5.00 after spending £3.85.",
+  "type": "money",
+  "unit": "£",
+  "answer": "1.15",
+  "topic": "money",
+  "hints": [
+   "You paid £5.00 and spent £3.85. The change is how much is left over.",
+   "Work in pence: 500p take away 385p. First take away 300p, then 85p.",
+   "Count up from 3.85: +15p makes £4.00, then +£1.00 makes £5.00. Add the jumps: 15p + £1.00."
+  ]
+ },
+ {
+  "id": "S-07",
+  "text": "Write 3/10 as a decimal.",
+  "type": "decimal",
+  "unit": "",
+  "answer": "0.3",
+  "topic": "decimals",
+  "hints": []
+ },
+ {
+  "id": "S-08",
+  "text": "2/7 + 3/7 =",
+  "type": "fraction",
+  "unit": "",
+  "answer": "5/7",
+  "topic": "fractions",
+  "hints": []
+ },
+ {
+  "id": "S-09",
+  "text": "50 ÷ 6 = __ r __",
+  "type": "remainder",
+  "unit": "",
+  "answer": "8 r 2",
+  "topic": "division",
+  "hints": []
+ },
+ {
+  "id": "S-10",
+  "text": "A film starts at 3.40 p.m. and lasts 2 hours 15 minutes. What time does it finish?",
+  "type": "time",
+  "unit": "",
+  "answer": "5:55 p.m.",
+  "topic": "time",
+  "hints": [
+   "Start at 3.40 p.m. Add the length of the film to find the finishing time.",
+   "Add the 2 hours first. Then add the 15 minutes. Remember there are 60 minutes in an hour.",
+   "Timeline: 3.40 ─ +2 hours → 5.40 ─ +15 min → ?"
+  ]
+ },
+ {
+  "id": "S-11",
+  "text": "Write 14 using Roman numerals.",
+  "type": "text",
+  "unit": "",
+  "answer": "XIV",
+  "topic": "roman numerals",
+  "hints": []
+ },
+ {
+  "id": "S-12",
+  "text": "How many days are there in March and April together?",
+  "type": "numeric",
+  "unit": "days",
+  "answer": "61",
+  "topic": "calendar",
+  "hints": [
+   "You need the number of days in each of the two months, then add them.",
+   "March has 31 days. April has 30 days. Add them together.",
+   "31 + 30: add 30 + 30 first, then add the extra 1."
+  ]
+ },
+ {
+  "id": "S-13",
+  "text": "A pack of 6 pencils costs 90p. How much does one pencil cost?",
+  "type": "numeric",
+  "unit": "p",
+  "answer": "15",
+  "topic": "money",
+  "hints": [
+   "The 6 pencils cost 90p altogether. You want the price of just one.",
+   "Share the cost equally between the pencils: 90p ÷ 6.",
+   "Try 10p each: 6 × 10p = 60p. That is not enough. Try 15p each and check 6 × 15p."
+  ]
+ },
+ {
+  "id": "S-14",
+  "text": "Tom has £2. He spends 65p and 48p. How much change does he get?",
+  "type": "numeric",
+  "unit": "p",
+  "answer": "87",
+  "topic": "money",
+  "hints": [
+   "Tom starts with £2. He spends money twice. The change is what is left.",
+   "Add the two amounts he spends: 65p + 48p. Then take that from 200p.",
+   "65 + 48 = 113. Now count up from 113 to 200 in jumps."
+  ]
+ },
+ {
+  "id": "S-15",
+  "text": "Write the missing signs +, −, × or ÷ in place of ● and ▲.   15 ● 3 = 2 ▲ 3",
+  "type": "operators",
+  "unit": [
+   "Work out the left side first. Try each sign between 15 and 3.",
+   "15 ÷ 3 = 5. Now find the sign that makes 2 ▲ 3 equal 5.",
+   "Check: 2 + 3 = 5, so the signs are ÷ and +."
+  ],
+  "answer": "● = ÷, ▲ = +",
+  "topic": "operators",
+  "hints": []
+ },
+ {
+  "id": "S-16",
+  "text": "Which fraction is equivalent to 1/2?",
+  "type": "choice",
+  "unit": "",
+  "answer": "3/6",
+  "topic": "fractions",
+  "hints": [],
+  "options": [
+   "2/5",
+   "3/6",
+   "3/5"
+  ]
+ },
+ {
+  "id": "S-17",
+  "text": "Round 4872 to the nearest hundred.",
+  "type": "numeric",
+  "unit": "",
+  "answer": "4900",
+  "topic": "rounding",
+  "hints": []
+ },
+ {
+  "id": "S-18",
+  "text": "A rectangle is 9cm long and 4cm wide. What is the distance all the way round it?",
+  "type": "numeric",
+  "unit": "cm",
+  "answer": "26",
+  "topic": "perimeter",
+  "hints": [
+   "The distance round a shape is the perimeter. A rectangle has 4 sides.",
+   "Opposite sides are equal: two sides of 9cm and two sides of 4cm. Add all four.",
+   "Draw it: 9 + 4 + 9 + 4. Or add 9 + 4 first, then double it."
+  ]
+ },
+ {
+  "id": "S-19",
+  "text": "Write this date in digits only. The fourteenth day of June two thousand and eighteen.",
+  "type": "text",
+  "unit": "",
+  "answer": "14/06/2018",
+  "topic": "dates",
+  "hints": [],
+  "accept": {
+   "type": "date",
+   "day": 14,
+   "month": 6,
+   "year": 2018,
+   "orders": [
+    "dmy",
+    "mdy"
+   ],
+   "year_digits": [
+    2,
+    4
+   ],
+   "separators": "any"
+  }
+ },
+ {
+  "id": "S-20",
+  "text": "Add the even numbers between 11 and 17.",
+  "type": "numeric",
+  "unit": "",
+  "answer": "42",
+  "topic": "multi-step",
+  "hints": [
+   "Between 11 and 17 means 12, 13, 14, 15, 16. You only want the even ones.",
+   "The even numbers are 12, 14 and 16. Add them together.",
+   "12 + 14 = 26. Now add 16."
+  ]
+ },
+ {
+  "id": "S-21",
+  "text": "If 1kg of apples costs £2, find the cost of (a) 100g (b) 200g.",
+  "type": "multi",
+  "unit": "p",
+  "answer": "a=20, b=40",
+  "topic": "money",
+  "hints": []
+ },
+ {
+  "id": "S-22",
+  "text": "237cm = __ m __ cm",
+  "type": "multi",
+  "unit": "",
+  "answer": "2 m 37 cm",
+  "topic": "measures",
+  "hints": []
+ },
+ {
+  "id": "S-23",
+  "text": "List the first four multiples of 6.",
+  "type": "list",
+  "unit": "",
+  "answer": "6, 12, 18, 24",
+  "topic": "multiples",
+  "hints": []
+ },
+ {
+  "id": "S-24",
+  "text": "A film starts at 6.45 p.m. and ends at 8.20 p.m. How long is the film?",
+  "type": "multi",
+  "unit": "",
+  "answer": "1 hour 35 minutes",
+  "topic": "time",
+  "hints": [
+   "The film runs from 6.45 p.m. to 8.20 p.m. You need the time in between.",
+   "Count on to the next hour: 6.45 to 7.45 is 1 hour. Then 7.45 to 8.20 is how many minutes?",
+   "Timeline: 6.45 ─ +1 hour → 7.45 ─ +? min → 8.20"
+  ]
+ }
+]
