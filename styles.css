@@ -125,3 +125,7 @@ table { font-size: .8rem; }
 .chip { border: 2px solid var(--line); background: #fff; border-radius: 999px; padding: .6rem 1rem; font-size: 1rem; font-weight: 600; cursor: pointer; min-height: 44px; }
 .chip small { opacity: .6; font-weight: 500; margin-left: .25rem; }
 .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* add-player tile */
+.who.add { border-style: dashed; background: transparent; color: var(--muted); }
+.who.add .avatar { background: var(--line); color: var(--ink); }

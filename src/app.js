@@ -167,7 +167,15 @@ function screenProfiles() {
   return `${header("Who's playing?")}
   <main class="grid">
     ${D.profiles.map(p => `<button class="who" style="--accent:${p.color}" data-a="chooseProfile" data-id="${p.id}"><span class="avatar">${esc(p.name.charAt(0).toUpperCase())}</span>${esc(p.name)}</button>`).join('')}
+    ${S.addingPlayer ? '' : `<button class="who add" data-a="showAddPlayer"><span class="avatar">+</span>Add player</button>`}
   </main>
+  ${S.addingPlayer ? `<section class="card narrow"><h2>New player</h2>
+    <form data-form="addProfile">
+      <label>Name <input name="name" maxlength="20" required autocomplete="off" autofocus></label>
+      ${colorPicker()}
+      <button class="btn primary big" type="submit">Add player</button>
+      <button class="btn" type="button" data-a="hideAddPlayer">Cancel</button>
+    </form></section>` : ''}
   ${footerParent()}`;
 }
 
@@ -191,7 +199,7 @@ function screenHome() {
       <button class="chip ${S.cfg.subject === '' ? 'on' : ''}" data-a="subject" data-s="">Mixed <small>${bank.questions.length}</small></button>
       ${subjects.map(x => `<button class="chip ${S.cfg.subject === x.name ? 'on' : ''}" data-a="subject" data-s="${esc(x.name)}">${esc(x.name)} <small>${x.n}</small></button>`).join('')}
     </div>` : '';
-  return `<header class="top"><button class="link" data-a="switchPlayer">‹ Players</button><h1>Hi ${esc(p.name)}!</h1><span class="stars">⭐ ${totalStars}</span></header>
+  return `<header class="top"><button class="link" data-a="switchPlayer">‹ Switch player</button><h1>Hi ${esc(p.name)}!</h1><span class="stars">⭐ ${totalStars}</span></header>
   <main class="card narrow">
     ${lastSum ? `<p class="muted">Last time: ${lastSum.correct} out of ${lastSum.n} (${last.mode === 'test' ? 'test' : 'practice'})</p>` : '<p class="muted">Pick a mode to begin.</p>'}
     ${D.banks.length > 1 ? `<label>Questions from <select data-change="bank">${D.banks.map(b => `<option value="${b.id}" ${b.id === S.cfg.bankId ? 'selected' : ''}>${esc(b.name)} (${b.questions.length})</option>`).join('')}</select></label>` : ''}
@@ -398,7 +406,9 @@ function updateTimer() {
 
 const actions = {
   chooseProfile(el) { S.profileId = el.dataset.id; D.lastProfileId = S.profileId; persist(); S.screen = 'home'; S.error = ''; render(); },
-  switchPlayer() { S.profileId = null; S.screen = 'profiles'; render(); },
+  showAddPlayer() { S.addingPlayer = true; render(); },
+  hideAddPlayer() { S.addingPlayer = false; render(); },
+  switchPlayer() { S.addingPlayer = false; S.profileId = null; S.screen = 'profiles'; render(); },
   start(el) { startRun(el.dataset.mode); },
   subject(el) { S.cfg.subject = el.dataset.s; render(); },
   focus(el) { const q = S.run.q; if (q.feedback) return; touch(); q.active = Number(el.dataset.i); render(); },
@@ -468,7 +478,7 @@ root.addEventListener('submit', async (e) => {
     if (!name) return;
     D.profiles.push({ id: uid(), name, color: fd.get('color') || COLORS[0], showTimer: false, childCanToggleTimer: true });
     persist(); S.error = '';
-    if (S.screen === 'profiles') { S.screen = 'profiles'; }
+    S.addingPlayer = false;
     render();
   } else if (kind === 'pin') {
     const pin = String(fd.get('pin') || '');
